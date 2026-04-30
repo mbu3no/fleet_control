@@ -1,4 +1,4 @@
-# 🚗 Fleet Control
+# Fleet Control
 
 Sistema de gestão integrada de frotas — controle de veículos, motoristas, abastecimentos, manutenções, despesas, seguros, viagens e reservas — com dados em tempo real no Supabase.
 
@@ -9,7 +9,7 @@ Sistema de gestão integrada de frotas — controle de veículos, motoristas, ab
 
 ---
 
-## ✨ Funcionalidades
+## Funcionalidades
 
 - **Dashboard** com KPIs (veículos ativos, KM rodados, custos totais, custo por KM)
 - **Veículos** — cadastro, status (disponível, em uso, manutenção), KM atual, valor de compra
@@ -27,7 +27,7 @@ Sistema de gestão integrada de frotas — controle de veículos, motoristas, ab
 
 ---
 
-## 🧱 Stack
+## Stack
 
 | Camada | Tecnologia |
 |---|---|
@@ -39,7 +39,7 @@ Sistema de gestão integrada de frotas — controle de veículos, motoristas, ab
 
 ---
 
-## 🚀 Como rodar localmente
+## Como rodar localmente
 
 ### 1. Pré-requisitos
 
@@ -78,7 +78,7 @@ VITE_SUPABASE_URL=https://seu-projeto.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOi...
 ```
 
-> ⚠️ **NUNCA commite o arquivo `.env`** — ele já está no `.gitignore`. A `anon key` é pública por design (vai pro frontend mesmo), mas a `service_role key` **nunca** deve ir parar no código.
+> **Atenção:** NUNCA commite o arquivo `.env` — ele já está no `.gitignore`. A `anon key` é pública por design (vai pro frontend mesmo), mas a `service_role key` **nunca** deve ir parar no código.
 
 ### 5. Rode o servidor de desenvolvimento
 
@@ -90,7 +90,7 @@ App abre automaticamente em `http://localhost:5173`. Se o badge "Conectado ao Su
 
 ---
 
-## 📦 Estrutura do projeto
+## Estrutura do projeto
 
 ```
 fleet-control/
@@ -110,7 +110,7 @@ fleet-control/
 
 ---
 
-## 🗄️ Modelo de dados
+## Modelo de dados
 
 12 tabelas em PostgreSQL. Principais relacionamentos:
 
@@ -133,7 +133,7 @@ Todas as tabelas têm `created_at` e `updated_at` automáticos. Triggers de `upd
 
 ---
 
-## ☁️ Deploy na Vercel
+## Deploy na Vercel
 
 ### Opção 1 — Via dashboard (recomendado)
 
@@ -156,13 +156,13 @@ Cada `git push` na branch `main` dispara redeploy automático.
 
 ---
 
-## 🔒 Segurança
+## Segurança
 
 Este projeto está configurado para **desenvolvimento e uso interno** com Row Level Security (RLS) **desabilitado**. Isso significa:
 
-- ✅ Funciona out-of-the-box, sem configurar autenticação
-- ⚠️ **Qualquer pessoa com a anon key consegue ler/escrever em todas as tabelas via API**
-- ⚠️ **Não é apropriado para uso em produção pública** sem antes:
+- Funciona out-of-the-box, sem configurar autenticação
+- Qualquer pessoa com a anon key consegue ler/escrever em todas as tabelas via API
+- **Não é apropriado para uso em produção pública** sem antes:
   1. Habilitar RLS em todas as tabelas: `ALTER TABLE x ENABLE ROW LEVEL SECURITY;`
   2. Criar policies por tabela (ex: `CREATE POLICY "users own data" ON vehicles FOR ALL USING (auth.uid() = owner_id);`)
   3. Implementar autenticação Supabase Auth no app
@@ -172,7 +172,7 @@ Veja [docs do Supabase sobre RLS](https://supabase.com/docs/guides/auth/row-leve
 
 ---
 
-## 🛠️ Scripts disponíveis
+## Scripts disponíveis
 
 | Comando | Descrição |
 |---|---|
@@ -182,7 +182,7 @@ Veja [docs do Supabase sobre RLS](https://supabase.com/docs/guides/auth/row-leve
 
 ---
 
-## 📋 Roadmap
+## Roadmap
 
 - [ ] Autenticação multi-usuário com Supabase Auth
 - [ ] RLS policies por empresa/cost center
@@ -195,7 +195,7 @@ Veja [docs do Supabase sobre RLS](https://supabase.com/docs/guides/auth/row-leve
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### "Erro ao buscar companies: relation does not exist"
 Você ainda não rodou o `schema.sql` no Supabase. Veja a seção [Configure o Supabase](#3-configure-o-supabase).
@@ -211,6 +211,6 @@ O Tailwind é carregado via CDN no `index.html`. Confirme que tem internet e que
 
 ---
 
-## 📄 Licença
+## Licença
 
 Projeto privado. Todos os direitos reservados.
