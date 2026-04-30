@@ -14,7 +14,90 @@ html, body {
   min-height: 100vh;
 }
 
-/* Scrollbar custom (opcional) */
+/* ========================================================== */
+/* TEMA: dark (default) e light via [data-theme="light"]        */
+/* ========================================================== */
+
+html[data-theme="light"] body {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Backgrounds dark → light */
+html[data-theme="light"] [class*="bg-slate-950"] {
+  background-color: #f8fafc !important;
+}
+html[data-theme="light"] [class*="bg-slate-900"] {
+  background-color: #ffffff !important;
+}
+html[data-theme="light"] [class*="bg-slate-800"] {
+  background-color: #f1f5f9 !important;
+}
+html[data-theme="light"] [class*="bg-slate-700"] {
+  background-color: #e2e8f0 !important;
+}
+
+/* Hover de slate */
+html[data-theme="light"] .hover\:bg-slate-800:hover,
+html[data-theme="light"] .hover\:bg-slate-700:hover,
+html[data-theme="light"] .hover\:bg-slate-900:hover {
+  background-color: #cbd5e1 !important;
+}
+
+/* Texto */
+html[data-theme="light"] .text-white,
+html[data-theme="light"] [class*="text-slate-100"],
+html[data-theme="light"] [class*="text-slate-200"] {
+  color: #0f172a !important;
+}
+html[data-theme="light"] [class*="text-slate-300"] {
+  color: #1e293b !important;
+}
+html[data-theme="light"] [class*="text-slate-400"] {
+  color: #475569 !important;
+}
+html[data-theme="light"] [class*="text-slate-500"] {
+  color: #64748b !important;
+}
+html[data-theme="light"] [class*="text-slate-600"] {
+  color: #94a3b8 !important;
+}
+
+/* Hover de texto */
+html[data-theme="light"] .hover\:text-white:hover {
+  color: #0f172a !important;
+}
+
+/* Bordas */
+html[data-theme="light"] [class*="border-slate-900"],
+html[data-theme="light"] [class*="border-slate-800"] {
+  border-color: #e2e8f0 !important;
+}
+html[data-theme="light"] [class*="border-slate-700"] {
+  border-color: #cbd5e1 !important;
+}
+html[data-theme="light"] [class*="border-slate-600"] {
+  border-color: #94a3b8 !important;
+}
+
+/* Inputs/selects/textareas — força texto escuro no light */
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea {
+  color: #0f172a !important;
+}
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Reduz brilho dos blobs decorativos no light */
+html[data-theme="light"] [class*="bg-violet-600/10"],
+html[data-theme="light"] [class*="bg-cyan-500/10"] {
+  opacity: 0.4;
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -28,4 +111,14 @@ html, body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+html[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+}
+html[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important;
+}
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8 !important;
 }

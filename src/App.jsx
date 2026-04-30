@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Car, Fuel, Wrench, Users, LayoutDashboard, Plus, Trash2, AlertCircle, MapPin, X, Activity, Settings, Building2, Wallet, Menu, Pencil, DollarSign, Shield, Receipt, CheckCircle2, Clock, CalendarCheck, TrendingUp, Loader2, Database, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Car, Fuel, Wrench, Users, LayoutDashboard, Plus, Trash2, AlertCircle, MapPin, X, Activity, Settings, Building2, Wallet, Menu, Pencil, DollarSign, Shield, Receipt, CheckCircle2, Clock, CalendarCheck, TrendingUp, Loader2, Database, RefreshCw, Wifi, WifiOff, Sun, Moon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { supabase, fetchTable, insertRow, updateRow, deleteRow } from './lib/supabase.js';
 
@@ -54,6 +54,14 @@ export default function App() {
   const [connectionStatus, setConnectionStatus] = useState('checking');
   const [connectionError, setConnectionError] = useState('');
   const [toast, setToast] = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem('fleet_theme') || 'dark');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('fleet_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'));
 
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -381,6 +389,10 @@ export default function App() {
             <div className="p-4 border-t border-slate-800/50 space-y-2">
               <button onClick={loadAll} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-800 transition-all">
                 <RefreshCw size={12} strokeWidth={2} /> Atualizar dados
+              </button>
+
+              <button onClick={toggleTheme} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-800 transition-all" title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}>
+                {theme === 'dark' ? <><Sun size={12} strokeWidth={2} /> Tema claro</> : <><Moon size={12} strokeWidth={2} /> Tema escuro</>}
               </button>
 
               <div className="px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">

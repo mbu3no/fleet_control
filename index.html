@@ -6,9 +6,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Fleet Control</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Aplica tema antes do React montar para evitar flash de cor errada
+      (function () {
+        try {
+          var saved = localStorage.getItem('fleet_theme');
+          if (saved === 'light' || saved === 'dark') {
+            document.documentElement.setAttribute('data-theme', saved);
+          } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
     <style>
       html, body, #root { height: 100%; margin: 0; }
-      body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #020617; color: #f1f5f9; }
+      body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #020617; color: #f1f5f9; transition: background-color 0.2s ease, color 0.2s ease; }
+      html[data-theme="light"] body { background: #f8fafc; color: #0f172a; }
     </style>
   </head>
   <body>
