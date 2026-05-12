@@ -15,6 +15,36 @@ html, body {
 }
 
 /* ========================================================== */
+/* TIPOGRAFIA REFINADA                                         */
+/* ========================================================== */
+h1, h2, h3, h4 {
+  letter-spacing: -0.025em;
+}
+
+/* Mono nos números — usa .tabular-nums já espalhado pelo app */
+.tabular-nums,
+.font-mono {
+  font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-feature-settings: 'tnum' 1, 'zero' 1, 'ss01' 1;
+}
+
+/* Grain sutil no background — adiciona textura tátil */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1   0 0 0 0 1   0 0 0 0 1   0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
+}
+
+html[data-theme="light"] .grain {
+  opacity: 0.025;
+  mix-blend-mode: multiply;
+}
+
+/* ========================================================== */
 /* TEMA: dark (default) e light via [data-theme="light"]        */
 /* ========================================================== */
 
@@ -92,9 +122,9 @@ html[data-theme="light"] textarea::placeholder {
 }
 
 /* Reduz brilho dos blobs decorativos no light */
-html[data-theme="light"] [class*="bg-violet-600/10"],
-html[data-theme="light"] [class*="bg-cyan-500/10"] {
-  opacity: 0.4;
+html[data-theme="light"] [class*="bg-violet-600/5"],
+html[data-theme="light"] [class*="bg-violet-500/5"] {
+  opacity: 0.5;
 }
 
 /* Scrollbar */
@@ -121,4 +151,42 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb {
 }
 html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8 !important;
+}
+
+/* ========================================================== */
+/* IMPRESSÃO / PDF                                            */
+/* ========================================================== */
+@media print {
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  aside, .print-hide {
+    display: none !important;
+  }
+  header.lg\:hidden {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .allocation-page * {
+    color: #0f172a !important;
+    background: transparent !important;
+  }
+  .allocation-page .text-slate-400,
+  .allocation-page .text-slate-500,
+  .allocation-page .text-slate-600 {
+    color: #475569 !important;
+  }
+  .allocation-page [class*="border-"] {
+    border-color: #cbd5e1 !important;
+  }
+  .allocation-page button {
+    pointer-events: none;
+  }
+  .allocation-table > div {
+    page-break-inside: avoid;
+  }
 }
