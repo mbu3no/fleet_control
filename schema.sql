@@ -77,6 +77,8 @@ CREATE TABLE vehicles (
   current_km NUMERIC(12, 2) DEFAULT 0,
   purchase_value NUMERIC(12, 2) DEFAULT 0,
   purchase_date DATE,
+  next_revision_km NUMERIC(12, 2),
+  next_revision_date DATE,
   status TEXT DEFAULT 'disponível',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

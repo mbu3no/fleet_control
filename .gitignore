@@ -42,3 +42,6 @@ pnpm-debug.log*
 
 # Sistema
 Thumbs.db
+
+# Configuração local de ferramentas
+.claude/
