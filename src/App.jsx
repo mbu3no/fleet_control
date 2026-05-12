@@ -1,47 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Car, Fuel, Wrench, Users, LayoutDashboard, Plus, Trash2, AlertCircle, MapPin, X, Activity, Settings, Building2, Wallet, Menu, Pencil, DollarSign, Shield, Receipt, CheckCircle2, Clock, CalendarCheck, TrendingUp, Loader2, Database, RefreshCw, Wifi, WifiOff, Sun, Moon } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import {
+  Car, Fuel, Wrench, Users, LayoutDashboard, MapPin, Settings, Building2,
+  Wallet, Menu, Pencil, Trash2, DollarSign, Receipt, CalendarCheck, Loader2,
+  Database, RefreshCw, Wifi, WifiOff, Sun, Moon, Calculator, X,
+} from 'lucide-react';
 import { supabase, fetchTable, insertRow, updateRow, deleteRow } from './lib/supabase.js';
+import {
+  Toast, PageHeader, SectionPage, TabBtn, DataTable, EmptyState,
+  Input, Select, SaveButton, InfleetSyncBar,
+} from './components/ui.jsx';
+import { DashboardView } from './pages/Dashboard.jsx';
+import { DepreciationView } from './pages/Depreciation.jsx';
+import { ExpensesView } from './pages/Expenses.jsx';
+import { ReservationsView } from './pages/Reservations.jsx';
+import { AllocationView } from './pages/Allocation.jsx';
 
-// =====================================================================
-// TOAST (notificação visual)
-// =====================================================================
-function Toast({ toast, onClose }) {
-  useEffect(() => {
-    if (toast?.duration !== 0) {
-      const t = setTimeout(onClose, toast?.duration || 4000);
-      return () => clearTimeout(t);
-    }
-  }, [toast, onClose]);
-
-  if (!toast) return null;
-  const cfg = {
-    success: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-100', icon: CheckCircle2, color: 'text-emerald-300' },
-    error: { bg: 'bg-rose-500/10', border: 'border-rose-500/30', text: 'text-rose-100', icon: AlertCircle, color: 'text-rose-300' },
-    info: { bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-100', icon: Activity, color: 'text-cyan-300' }
-  };
-  const c = cfg[toast.type] || cfg.info;
-  const Icon = c.icon;
-
-  return (
-    <div className="fixed bottom-6 right-6 z-50 max-w-md">
-      <div className={`flex items-start gap-3 p-4 rounded-2xl border backdrop-blur-xl shadow-2xl ${c.bg} ${c.border}`}>
-        <Icon size={18} className={`${c.color} flex-shrink-0 mt-0.5`} strokeWidth={2} />
-        <div className="flex-1 min-w-0">
-          <div className={`text-sm font-medium ${c.text}`}>{toast.title}</div>
-          {toast.message && <div className="text-xs text-slate-300 mt-1 break-words whitespace-pre-wrap">{toast.message}</div>}
-        </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-white flex-shrink-0">
-          <X size={14} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// =====================================================================
-// APP PRINCIPAL
-// =====================================================================
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showModal, setShowModal] = useState(null);
@@ -73,8 +46,30 @@ export default function App() {
   const [expenses, setExpenses] = useState([]);
   const [insurances, setInsurances] = useState([]);
   const [reservations, setReservations] = useState([]);
+  const [syncingInfleet, setSyncingInfleet] = useState(false);
 
   const showToast = (type, title, message, duration) => setToast({ type, title, message, duration });
+
+  const syncInfleetVehicles = async () => {
+    setSyncingInfleet(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-infleet-vehicles', { body: {} });
+      if (error) throw new Error(error.message || String(error));
+      if (!data?.ok) throw new Error(data?.error || 'Falha na sincronização');
+      const { inserted = 0, updated = 0, errors = [] } = data;
+      if (errors.length > 0) {
+        showToast('error', 'Sincronização com avisos', `${inserted} novos, ${updated} atualizados, ${errors.length} erros — ver console`);
+        console.error('[Infleet sync] erros:', errors);
+      } else {
+        showToast('success', 'Sincronização concluída', `${inserted} novos · ${updated} atualizados`);
+      }
+      await loadAll();
+    } catch (e) {
+      showToast('error', 'Erro na sincronização', e.message || String(e));
+    } finally {
+      setSyncingInfleet(false);
+    }
+  };
 
   const loadAll = async () => {
     setLoadingData(true);
@@ -103,9 +98,7 @@ export default function App() {
       setInsurances(is_);
       setReservations(rs);
       setConnectionStatus('connected');
-      console.log('✅ Dados carregados:', { companies: cs.length, vehicles: vs.length, drivers: ds.length });
     } catch (e) {
-      console.error('❌ Erro ao carregar:', e);
       setConnectionStatus('error');
       setConnectionError(e.message);
       showToast('error', 'Erro ao conectar com Supabase', e.message, 0);
@@ -132,7 +125,6 @@ export default function App() {
       await loadAll();
       closeModal();
     } catch (e) {
-      console.error('[SAVE] ❌ Erro:', e);
       showToast('error', `Erro ao salvar ${label.toLowerCase()}`, e.message, 0);
     } finally {
       setSavingItem(false);
@@ -150,7 +142,6 @@ export default function App() {
     }
   };
 
-  // ============= SAVES POR ENTIDADE =============
   const saveCompany = () => {
     if (!formData.name?.trim()) { showToast('error', 'Erro', 'Nome é obrigatório'); return; }
     saveGeneric('companies', { name: formData.name.trim(), cnpj: formData.cnpj?.trim() || null }, formData.id, 'Empresa');
@@ -167,15 +158,21 @@ export default function App() {
 
   const saveVehicle = () => {
     if (!formData.plate?.trim() || !formData.model?.trim()) { showToast('error', 'Erro', 'Placa e modelo são obrigatórios'); return; }
-    saveGeneric('vehicles', {
-      plate: formData.plate.trim(),
-      model: formData.model.trim(),
-      year: formData.year ? Number(formData.year) : null,
-      current_km: Number(formData.current_km) || 0,
+    const isInfleet = !!formData.infleet_id;
+    const payload = {
       purchase_value: Number(formData.purchase_value) || 0,
       purchase_date: formData.purchase_date || null,
+      next_revision_km: formData.next_revision_km ? Number(formData.next_revision_km) : null,
+      next_revision_date: formData.next_revision_date || null,
       status: formData.status || 'disponível'
-    }, formData.id, 'Veículo');
+    };
+    if (!isInfleet) {
+      payload.plate = formData.plate.trim();
+      payload.model = formData.model.trim();
+      payload.year = formData.year ? Number(formData.year) : null;
+      payload.current_km = Number(formData.current_km) || 0;
+    }
+    saveGeneric('vehicles', payload, formData.id, 'Veículo');
   };
 
   const saveDriver = () => {
@@ -285,8 +282,19 @@ export default function App() {
   if (loadingData && connectionStatus === 'checking') {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-center p-4">
-        <Loader2 size={32} className="text-violet-400 animate-spin mb-3" />
-        <p className="text-sm text-slate-400">Conectando ao Supabase...</p>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl bg-violet-500 flex items-center justify-center shadow-sm shadow-violet-500/20">
+            <Car size={20} className="text-white" strokeWidth={2} />
+          </div>
+          <div className="text-left">
+            <div className="text-base font-semibold text-white tracking-tight">Fleet Control</div>
+            <div className="text-[10px] text-slate-500">Gestão integrada</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <Loader2 size={12} className="animate-spin" />
+          Conectando ao Supabase
+        </div>
       </div>
     );
   }
@@ -315,7 +323,7 @@ export default function App() {
             </ul>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={loadAll} className="py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 text-white text-sm font-medium flex items-center justify-center gap-2">
+            <button onClick={loadAll} className="py-2.5 rounded-xl bg-violet-500 hover:bg-violet-400 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2">
               <RefreshCw size={14} /> Tentar novamente
             </button>
             <button onClick={() => window.location.reload()} className="py-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-200 text-sm font-medium flex items-center justify-center gap-2 hover:bg-slate-800">
@@ -336,6 +344,7 @@ export default function App() {
     { id: 'expenses', label: 'Despesas', icon: Receipt },
     { id: 'drivers', label: 'Motoristas', icon: Users },
     { id: 'trips', label: 'Viagens', icon: MapPin },
+    { id: 'allocation', label: 'Rateio', icon: Calculator },
   ];
 
   const settingsNav = [
@@ -345,17 +354,18 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 relative overflow-hidden">
+      <div className="grain"></div>
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-60 -right-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-violet-600/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-96 -right-40 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="relative flex">
-        <aside className={`fixed lg:sticky top-0 left-0 h-screen z-40 w-64 bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/50 transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <div className="relative">
+        <aside className={`fixed top-0 left-0 h-screen z-40 w-64 bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/50 transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
           <div className="h-full flex flex-col">
             <div className="p-6 border-b border-slate-800/50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
+                <div className="w-10 h-10 rounded-xl bg-violet-500 flex items-center justify-center shadow-sm shadow-violet-500/20">
                   <Car size={20} className="text-white" strokeWidth={2} />
                 </div>
                 <div>
@@ -373,26 +383,17 @@ export default function App() {
                   const isActive = activeTab === item.id;
                   return (
                     <button key={item.id} onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${isActive ? 'bg-gradient-to-r from-violet-500/20 to-cyan-500/10 text-white border border-violet-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}>
+                      className={`w-full flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-lg text-sm transition-colors duration-150 border-l-2 ${isActive ? 'border-violet-400 text-white bg-slate-800/40' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}>
                       <Icon size={16} strokeWidth={2} /><span className="font-medium">{item.label}</span>
                     </button>
                   );
                 })}
               </div>
-              <div className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold px-3 mb-2 mt-6">Sistema</div>
-              <button onClick={() => { setActiveTab('settings'); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${activeTab === 'settings' ? 'bg-gradient-to-r from-violet-500/20 to-cyan-500/10 text-white border border-violet-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}>
-                <Settings size={16} strokeWidth={2} /><span className="font-medium">Configurações</span>
-              </button>
             </nav>
 
             <div className="p-4 border-t border-slate-800/50 space-y-2">
-              <button onClick={loadAll} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-800 transition-all">
+              <button onClick={loadAll} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-800 transition-colors">
                 <RefreshCw size={12} strokeWidth={2} /> Atualizar dados
-              </button>
-
-              <button onClick={toggleTheme} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-800 transition-all" title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}>
-                {theme === 'dark' ? <><Sun size={12} strokeWidth={2} /> Tema claro</> : <><Moon size={12} strokeWidth={2} /> Tema escuro</>}
               </button>
 
               <div className="px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
@@ -405,32 +406,54 @@ export default function App() {
 
         {sidebarOpen && <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-30 lg:hidden" onClick={() => setSidebarOpen(false)}></div>}
 
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 lg:ml-64">
           <header className="lg:hidden sticky top-0 z-20 border-b border-slate-800/50 backdrop-blur-xl bg-slate-950/80 p-4 flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(true)} className="w-9 h-9 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300">
+            <button onClick={() => setSidebarOpen(true)} className="w-9 h-9 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 transition-colors">
               <Menu size={18} strokeWidth={2} />
             </button>
-            <span className="text-sm font-semibold">Fleet Control</span>
+            <span className="text-sm font-semibold flex-1">Fleet Control</span>
+            <button onClick={() => setActiveTab('settings')} className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${activeTab === 'settings' ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30' : 'hover:bg-slate-800 text-slate-300'}`} title="Configurações" aria-label="Configurações">
+              <Settings size={16} strokeWidth={2} />
+            </button>
+            <button onClick={toggleTheme} className="w-9 h-9 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 transition-colors" title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'} aria-label="Alternar tema">
+              {theme === 'dark' ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
+            </button>
           </header>
 
-          <main className="max-w-7xl mx-auto px-6 lg:px-10 py-8 lg:py-10">
-            {activeTab === 'dashboard' && <DashboardView vehicles={vehicles} trips={trips} fuelings={fuelings} maintenances={maintenances} expenses={expenses} insurances={insurances} pieColors={pieColors} />}
+          <header className="hidden lg:flex justify-end items-center gap-1 sticky top-0 z-20 px-6 lg:px-10 py-3">
+            <button onClick={() => setActiveTab('settings')} className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${activeTab === 'settings' ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30' : 'hover:bg-slate-800/60 text-slate-400 hover:text-white'}`} title="Configurações" aria-label="Configurações">
+              <Settings size={16} strokeWidth={2} />
+            </button>
+            <button onClick={toggleTheme} className="w-9 h-9 rounded-lg hover:bg-slate-800/60 flex items-center justify-center text-slate-400 hover:text-white transition-colors" title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'} aria-label="Alternar tema">
+              {theme === 'dark' ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
+            </button>
+          </header>
+
+          <main className="max-w-7xl mx-auto px-6 lg:px-10 pb-8 lg:pb-10 pt-2 lg:pt-2">
+            {activeTab === 'dashboard' && <DashboardView vehicles={vehicles} trips={trips} fuelings={fuelings} maintenances={maintenances} expenses={expenses} insurances={insurances} reservations={reservations} pieColors={pieColors} />}
 
             {activeTab === 'vehicles' && (
               <div>
-                <PageHeader title="Veículos" subtitle={`${vehicles.length} cadastrados`} onAdd={() => openModal('vehicle')} />
+                <PageHeader title="Veículos" count={vehicles.length} onAdd={() => openModal('vehicle')} />
+                <InfleetSyncBar
+                  syncedCount={vehicles.filter(v => v.infleet_id).length}
+                  totalCount={vehicles.length}
+                  lastSync={vehicles.reduce((a, v) => (v.last_synced_at && (!a || v.last_synced_at > a)) ? v.last_synced_at : a, null)}
+                  onSync={syncInfleetVehicles}
+                  syncing={syncingInfleet}
+                />
                 <div className="flex gap-1 mb-8 p-1 rounded-xl bg-slate-900/50 border border-slate-800 w-fit">
                   <TabBtn active={vehiclesTab === 'list'} onClick={() => setVehiclesTab('list')} icon={Car}>Lista</TabBtn>
                   <TabBtn active={vehiclesTab === 'depreciation'} onClick={() => setVehiclesTab('depreciation')} icon={DollarSign}>Depreciação</TabBtn>
                 </div>
                 {vehiclesTab === 'list' && (
-                  vehicles.length === 0 ? <EmptyState icon={Car} text="Nenhum veículo cadastrado. Clique em 'Adicionar' para começar." /> :
+                  vehicles.length === 0 ? <EmptyState icon={Car} text="Nenhum veículo cadastrado. Clique em 'Adicionar' para começar ou sincronize da Infleet." /> :
                   <DataTable columns={['Placa', 'Modelo', 'Ano', 'Km', 'Valor', 'Status']}
                     rows={vehicles.map(v => ({ id: v.id, cells: [
-                      <span className="font-semibold text-white">{v.plate}</span>, v.model, v.year || '—',
+                      <span className="flex items-center gap-2"><span className="font-semibold text-white">{v.plate}</span>{v.infleet_id && <span title="Sincronizado da Infleet" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium">INFLEET</span>}</span>, v.model, v.year || '—',
                       `${Number(v.current_km || 0).toLocaleString('pt-BR')} km`,
                       v.purchase_value > 0 ? <span className="text-emerald-300">R$ {Number(v.purchase_value).toLocaleString('pt-BR')}</span> : '—',
-                      <span className="inline-flex px-2.5 py-1 text-[11px] bg-emerald-500/10 text-emerald-300 rounded-full border border-emerald-500/20">{v.status}</span>
+                      <span className="inline-flex px-2 py-0.5 text-[10px] font-medium tracking-wide bg-emerald-500/10 text-emerald-300 rounded-full border border-emerald-500/20">{v.status}</span>
                     ], onEdit: () => openModal('vehicle', v),
                        onRemove: () => removeItem('vehicles', v.id, 'Veículo') }))} />
                 )}
@@ -441,7 +464,7 @@ export default function App() {
             {activeTab === 'reservations' && <ReservationsView vehicles={vehicles} reservations={reservations} openModal={openModal} removeItem={(id) => removeItem('reservations', id, 'Reserva')} updateStatus={updateReservationStatus} getVehicleName={getVehicleName} />}
 
             {activeTab === 'fuelings' && (
-              <SectionPage title="Abastecimentos" subtitle={`${fuelings.length} registros`} canAdd={vehicles.length > 0} onAdd={() => openModal('fueling')} empty={fuelings.length === 0} emptyIcon={Fuel} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem abastecimentos"}>
+              <SectionPage title="Abastecimentos" count={fuelings.length} canAdd={vehicles.length > 0} onAdd={() => openModal('fueling')} empty={fuelings.length === 0} emptyIcon={Fuel} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem abastecimentos"}>
                 <DataTable columns={['Data', 'Veículo', 'Litros', 'Valor', 'Km']}
                   rows={fuelings.map(f => ({ id: f.id, cells: [
                     new Date(f.date).toLocaleDateString('pt-BR'),
@@ -453,7 +476,7 @@ export default function App() {
             )}
 
             {activeTab === 'maintenances' && (
-              <SectionPage title="Manutenções" subtitle={`${maintenances.length} registros`} canAdd={vehicles.length > 0} onAdd={() => openModal('maintenance')} empty={maintenances.length === 0} emptyIcon={Wrench} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem manutenções"}>
+              <SectionPage title="Manutenções" count={maintenances.length} canAdd={vehicles.length > 0} onAdd={() => openModal('maintenance')} empty={maintenances.length === 0} emptyIcon={Wrench} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem manutenções"}>
                 <DataTable columns={['Data', 'Veículo', 'Tipo', 'Custo', 'Próxima (km)']}
                   rows={maintenances.map(m => ({ id: m.id, cells: [
                     new Date(m.date).toLocaleDateString('pt-BR'),
@@ -467,7 +490,7 @@ export default function App() {
             {activeTab === 'expenses' && <ExpensesView vehicles={vehicles} expenses={expenses} insurances={insurances} openModal={openModal} removeItem={removeItem} getVehicleName={getVehicleName} />}
 
             {activeTab === 'drivers' && (
-              <SectionPage title="Motoristas" subtitle={`${drivers.length} cadastrados`} canAdd={true} onAdd={() => openModal('driver')} empty={drivers.length === 0} emptyIcon={Users} emptyText="Sem motoristas">
+              <SectionPage title="Motoristas" count={drivers.length} canAdd={true} onAdd={() => openModal('driver')} empty={drivers.length === 0} emptyIcon={Users} emptyText="Sem motoristas">
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {drivers.map(d => {
                     const tripCount = trips.filter(t => t.driver_id == d.id).length;
@@ -475,7 +498,7 @@ export default function App() {
                       <div key={d.id} className="group relative rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
                         <div className="flex items-start justify-between">
                           <div className="flex items-start gap-3 min-w-0 flex-1">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 border border-slate-700 flex items-center justify-center text-sm font-semibold text-white flex-shrink-0">
+                            <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/20 flex items-center justify-center text-sm font-semibold text-white flex-shrink-0">
                               {d.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0 flex-1">
@@ -502,7 +525,7 @@ export default function App() {
             )}
 
             {activeTab === 'trips' && (
-              <SectionPage title="Viagens" subtitle={`${trips.length} registros`} canAdd={vehicles.length > 0 && drivers.length > 0} onAdd={() => openModal('trip')} empty={trips.length === 0} emptyIcon={MapPin} emptyText={vehicles.length === 0 || drivers.length === 0 ? "Cadastre veículos e motoristas primeiro" : "Sem viagens"}>
+              <SectionPage title="Viagens" count={trips.length} canAdd={vehicles.length > 0 && drivers.length > 0} onAdd={() => openModal('trip')} empty={trips.length === 0} emptyIcon={MapPin} emptyText={vehicles.length === 0 || drivers.length === 0 ? "Cadastre veículos e motoristas primeiro" : "Sem viagens"}>
                 <DataTable columns={['Data', 'Motorista', 'Veículo', 'Rota', 'Km']}
                   rows={trips.map(t => ({ id: t.id, cells: [
                     new Date(t.date).toLocaleDateString('pt-BR'),
@@ -515,6 +538,19 @@ export default function App() {
               </SectionPage>
             )}
 
+            {activeTab === 'allocation' && (
+              <AllocationView
+                vehicles={vehicles}
+                drivers={drivers}
+                companies={companies}
+                trips={trips}
+                fuelings={fuelings}
+                maintenances={maintenances}
+                expenses={expenses}
+                insurances={insurances}
+              />
+            )}
+
             {activeTab === 'settings' && (
               <div>
                 <div className="mb-8">
@@ -525,7 +561,7 @@ export default function App() {
                   {settingsNav.map(item => {
                     const Icon = item.icon;
                     return (
-                      <button key={item.id} onClick={() => setSettingsSection(item.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all whitespace-nowrap ${settingsSection === item.id ? 'bg-gradient-to-r from-violet-500 to-cyan-500 text-white' : 'text-slate-400'}`}>
+                      <button key={item.id} onClick={() => setSettingsSection(item.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all whitespace-nowrap ${settingsSection === item.id ? 'bg-violet-500 text-white' : 'text-slate-400 hover:text-white'}`}>
                         <Icon size={14} /><span className="font-medium">{item.label}</span>
                       </button>
                     );
@@ -533,7 +569,7 @@ export default function App() {
                 </div>
 
                 {settingsSection === 'companies' && (
-                  <SectionPage title="Empresas" subtitle={`${companies.length} cadastradas`} canAdd={true} onAdd={() => openModal('company')} empty={companies.length === 0} emptyIcon={Building2} emptyText="Sem empresas. Clique em Adicionar para criar a primeira.">
+                  <SectionPage title="Empresas" count={companies.length} canAdd={true} onAdd={() => openModal('company')} empty={companies.length === 0} emptyIcon={Building2} emptyText="Sem empresas. Clique em Adicionar para criar a primeira.">
                     <DataTable columns={['Nome', 'CNPJ', 'Motoristas']}
                       rows={companies.map(c => ({ id: c.id, cells: [
                         <span className="font-medium text-white">{c.name}</span>, c.cnpj || '—',
@@ -544,7 +580,7 @@ export default function App() {
                 )}
 
                 {settingsSection === 'costCenters' && (
-                  <SectionPage title="Centros de custo" subtitle={`${costCenters.length} cadastrados`} canAdd={true} onAdd={() => openModal('costCenter')} empty={costCenters.length === 0} emptyIcon={Wallet} emptyText="Sem centros de custo">
+                  <SectionPage title="Centros de custo" count={costCenters.length} canAdd={true} onAdd={() => openModal('costCenter')} empty={costCenters.length === 0} emptyIcon={Wallet} emptyText="Sem centros de custo">
                     <DataTable columns={['Código', 'Nome', 'Empresa', 'Motoristas']}
                       rows={costCenters.map(c => ({ id: c.id, cells: [
                         <span className="font-mono font-semibold text-white">{c.code}</span>, c.name,
@@ -560,7 +596,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={closeModal}>
           <div className="relative bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-7 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -599,12 +634,24 @@ export default function App() {
 
             {showModal === 'vehicle' && (
               <div className="space-y-4">
-                <Input label="Placa *" value={formData.plate} onChange={v => setFormData({...formData, plate: v})} />
-                <Input label="Modelo *" value={formData.model} onChange={v => setFormData({...formData, model: v})} />
-                <Input label="Ano" type="number" value={formData.year} onChange={v => setFormData({...formData, year: v})} />
-                <Input label="Km atual" type="number" value={formData.current_km} onChange={v => setFormData({...formData, current_km: v})} />
+                {formData.infleet_id && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-[11px] text-sky-200">
+                    <Database size={14} className="text-sky-400 shrink-0 mt-0.5" />
+                    <div>
+                      Veículo sincronizado da <strong>Infleet</strong>. Placa, modelo, ano e Km atual são gerenciados lá e atualizam automaticamente na próxima sincronização. Os demais campos (revisão, aquisição, status) continuam editáveis localmente.
+                    </div>
+                  </div>
+                )}
+                <Input label="Placa *" value={formData.plate} onChange={v => setFormData({...formData, plate: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
+                <Input label="Modelo *" value={formData.model} onChange={v => setFormData({...formData, model: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
+                <Input label="Ano" type="number" value={formData.year} onChange={v => setFormData({...formData, year: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
+                <Input label="Km atual" type="number" value={formData.current_km} onChange={v => setFormData({...formData, current_km: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
                 <Input label="Valor de aquisição (R$)" type="number" value={formData.purchase_value} onChange={v => setFormData({...formData, purchase_value: v})} />
                 <Input label="Data de aquisição" type="date" value={formData.purchase_date} onChange={v => setFormData({...formData, purchase_date: v})} />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="Próxima revisão (km)" type="number" value={formData.next_revision_km} onChange={v => setFormData({...formData, next_revision_km: v})} />
+                  <Input label="Próxima revisão (data)" type="date" value={formData.next_revision_date} onChange={v => setFormData({...formData, next_revision_date: v})} />
+                </div>
                 <Select label="Status" value={formData.status} onChange={v => setFormData({...formData, status: v})} options={[{value: 'disponível', label: 'Disponível'}, {value: 'em uso', label: 'Em uso'}, {value: 'manutenção', label: 'Manutenção'}, {value: 'inativo', label: 'Inativo'}]} />
                 <SaveButton onClick={saveVehicle} busy={savingItem} />
               </div>
@@ -702,390 +749,6 @@ export default function App() {
       )}
 
       <Toast toast={toast} onClose={() => setToast(null)} />
-    </div>
-  );
-}
-
-// =====================================================================
-// COMPONENTES COMPARTILHADOS
-// =====================================================================
-function PageHeader({ title, subtitle, onAdd }) {
-  return (
-    <div className="flex items-center justify-between mb-8 gap-4">
-      <div className="min-w-0">
-        <h2 className="text-xl lg:text-2xl font-semibold text-white tracking-tight truncate">{title}</h2>
-        <p className="text-sm text-slate-400 mt-1">{subtitle}</p>
-      </div>
-      {onAdd && (
-        <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 text-white text-sm font-medium shadow-lg shadow-violet-500/20">
-          <Plus size={16} strokeWidth={2.5} /><span className="hidden sm:inline">Adicionar</span>
-        </button>
-      )}
-    </div>
-  );
-}
-
-function SectionPage({ title, subtitle, canAdd, onAdd, empty, emptyIcon, emptyText, children }) {
-  return (
-    <div>
-      <PageHeader title={title} subtitle={subtitle} onAdd={canAdd ? onAdd : null} />
-      {empty ? <EmptyState icon={emptyIcon} text={emptyText} /> : children}
-    </div>
-  );
-}
-
-function TabBtn({ active, onClick, icon: Icon, children }) {
-  return (
-    <button onClick={onClick} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${active ? 'bg-gradient-to-r from-violet-500 to-cyan-500 text-white' : 'text-slate-400'}`}>
-      <Icon size={14} /><span className="font-medium">{children}</span>
-    </button>
-  );
-}
-
-function DataTable({ columns, rows }) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-800">
-              {columns.map((col, i) => <th key={i} className="text-left px-6 py-3.5 text-[11px] font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">{col}</th>)}
-              <th className="px-6 py-3.5"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(row => (
-              <tr key={row.id} className="border-b border-slate-800/50 last:border-0 text-sm text-slate-300 hover:bg-slate-800/30 group">
-                {row.cells.map((cell, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{cell}</td>)}
-                <td className="px-6 py-4 text-right whitespace-nowrap">
-                  <div className="inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {row.onEdit && <button onClick={row.onEdit} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-violet-400"><Pencil size={14} /></button>}
-                    {row.onRemove && <button onClick={row.onRemove} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-400"><Trash2 size={14} /></button>}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ icon: Icon, text }) {
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-20 text-center">
-      <Icon size={36} className="text-slate-700 mx-auto mb-3" strokeWidth={1.5} />
-      <p className="text-sm text-slate-500">{text}</p>
-    </div>
-  );
-}
-
-function KPICard({ label, value, icon: Icon, gradient, iconColor }) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-50`}></div>
-      <div className="relative">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">{label}</span>
-          <Icon size={16} className={iconColor} strokeWidth={2} />
-        </div>
-        <div className="text-2xl font-semibold text-white tracking-tight">{value}</div>
-      </div>
-    </div>
-  );
-}
-
-function Input({ label, value, onChange, type = 'text', placeholder }) {
-  return (
-    <div>
-      <label className="block text-xs text-slate-400 mb-1.5 font-medium">{label}</label>
-      <input type={type} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500" />
-    </div>
-  );
-}
-
-function Select({ label, value, onChange, options }) {
-  return (
-    <div>
-      <label className="block text-xs text-slate-400 mb-1.5 font-medium">{label}</label>
-      <select value={value || ''} onChange={e => onChange(e.target.value)}
-        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500">
-        <option value="">Selecione...</option>
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
-  );
-}
-
-function SaveButton({ onClick, busy }) {
-  return (
-    <button onClick={onClick} disabled={busy}
-      className="w-full mt-2 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 text-white text-sm font-medium shadow-lg shadow-violet-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
-      {busy ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
-      {busy ? 'Salvando...' : 'Salvar no Supabase'}
-    </button>
-  );
-}
-
-// =====================================================================
-// VIEWS ESPECÍFICAS
-// =====================================================================
-function DashboardView({ vehicles, trips, fuelings, maintenances, expenses, insurances, pieColors }) {
-  const totalKm = trips.reduce((s, t) => s + (Number(t.km) || 0), 0);
-  const totalFuel = fuelings.reduce((s, f) => s + (Number(f.value) || 0), 0);
-  const totalMaint = maintenances.reduce((s, m) => s + (Number(m.cost) || 0), 0);
-  const totalExp = expenses.reduce((s, e) => s + (Number(e.value) || 0), 0);
-  const totalIns = insurances.reduce((s, i) => s + (Number(i.premium) || 0), 0);
-  const totalCost = totalFuel + totalMaint + totalExp + totalIns;
-  const cpk = totalKm > 0 ? totalCost / totalKm : 0;
-
-  const costByVehicle = vehicles.map(v => {
-    const vF = fuelings.filter(f => f.vehicle_id == v.id).reduce((s, f) => s + Number(f.value || 0), 0);
-    const vM = maintenances.filter(m => m.vehicle_id == v.id).reduce((s, m) => s + Number(m.cost || 0), 0);
-    const total = vF + vM;
-    const vK = trips.filter(t => t.vehicle_id == v.id).reduce((s, t) => s + Number(t.km || 0), 0);
-    return { plate: v.plate, total, km: vK };
-  }).filter(v => v.total > 0 || v.km > 0).sort((a, b) => b.total - a.total);
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl lg:text-3xl font-semibold tracking-tight mb-1">Bem-vindo de volta</h2>
-        <p className="text-sm text-slate-400">Visão geral da frota</p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPICard label="Veículos" value={vehicles.length} icon={Car} gradient="from-violet-500/20 to-violet-600/5" iconColor="text-violet-400" />
-        <KPICard label="Km rodados" value={totalKm.toLocaleString('pt-BR')} icon={Activity} gradient="from-cyan-500/20 to-cyan-600/5" iconColor="text-cyan-400" />
-        <KPICard label="Total" value={`R$ ${totalCost.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`} icon={Wallet} gradient="from-rose-500/20 to-rose-600/5" iconColor="text-rose-400" />
-        <KPICard label="Combustível" value={`R$ ${totalFuel.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`} icon={Fuel} gradient="from-amber-500/20 to-amber-600/5" iconColor="text-amber-400" />
-        <KPICard label="Manutenção" value={`R$ ${totalMaint.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`} icon={Wrench} gradient="from-fuchsia-500/20 to-fuchsia-600/5" iconColor="text-fuchsia-400" />
-        <KPICard label="Custo/km" value={`R$ ${cpk.toFixed(2)}`} icon={TrendingUp} gradient="from-emerald-500/20 to-emerald-600/5" iconColor="text-emerald-400" />
-      </div>
-
-      {vehicles.length === 0 ? (
-        <div className="rounded-2xl border border-violet-500/30 bg-violet-500/5 p-8 text-center">
-          <Database size={36} className="text-violet-400 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-white mb-2">Banco de dados conectado!</h3>
-          <p className="text-sm text-slate-300 mb-4">Comece cadastrando suas empresas, depois veículos e motoristas.</p>
-          <p className="text-xs text-slate-500">Use o menu lateral para navegar entre as seções.</p>
-        </div>
-      ) : costByVehicle.length > 0 && (
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
-            <h3 className="text-sm font-semibold text-white mb-1">Custo por veículo</h3>
-            <p className="text-xs text-slate-500 mb-5">Ranking</p>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={costByVehicle.slice(0, 8)} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
-                <XAxis type="number" stroke="#64748b" fontSize={11} tickFormatter={(v) => `R$ ${(v/1000).toFixed(0)}k`} />
-                <YAxis type="category" dataKey="plate" stroke="#64748b" fontSize={11} width={80} />
-                <Tooltip contentStyle={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid #334155', borderRadius: '12px', fontSize: '12px' }} formatter={(v) => `R$ ${v.toLocaleString('pt-BR')}`} />
-                <Bar dataKey="total" fill="#a78bfa" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
-            <h3 className="text-sm font-semibold text-white mb-1">Distribuição</h3>
-            <p className="text-xs text-slate-500 mb-5">Por categoria</p>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie data={[
-                  { name: 'Combustível', value: totalFuel },
-                  { name: 'Manutenção', value: totalMaint },
-                  { name: 'Seguros', value: totalIns },
-                  { name: 'Despesas', value: totalExp }
-                ].filter(d => d.value > 0)} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={3}>
-                  {[0,1,2,3].map(i => <Cell key={i} fill={pieColors[i]} stroke="none" />)}
-                </Pie>
-                <Tooltip formatter={(v) => `R$ ${v.toLocaleString('pt-BR')}`} contentStyle={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid #334155', borderRadius: '12px', fontSize: '12px' }} />
-                <Legend wrapperStyle={{ fontSize: '11px' }} iconType="circle" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DepreciationView({ vehicles, pieColors }) {
-  const RATE = 0.20 / 12;
-  const today = new Date();
-  const calc = (v) => {
-    if (!v.purchase_value || !v.purchase_date) return { months: 0, dep: 0, current: v.purchase_value || 0, pct: 0 };
-    const p = new Date(v.purchase_date);
-    const months = Math.max(0, (today.getFullYear() - p.getFullYear()) * 12 + (today.getMonth() - p.getMonth()));
-    const dep = Number(v.purchase_value) * RATE * months;
-    return { months, dep, current: Math.max(0, Number(v.purchase_value) - dep), pct: v.purchase_value > 0 ? (dep / Number(v.purchase_value)) * 100 : 0 };
-  };
-
-  const wv = vehicles.filter(v => v.purchase_value > 0 && v.purchase_date);
-  if (wv.length === 0) return <EmptyState icon={DollarSign} text="Informe valor e data de aquisição nos veículos para acompanhar depreciação" />;
-
-  const ta = wv.reduce((s, v) => s + Number(v.purchase_value), 0);
-  const tc = wv.reduce((s, v) => s + calc(v).current, 0);
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard label="Aquisição" value={`R$ ${ta.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`} icon={DollarSign} gradient="from-emerald-500/20 to-emerald-600/5" iconColor="text-emerald-400" />
-        <KPICard label="Atual" value={`R$ ${tc.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`} icon={Wallet} gradient="from-violet-500/20 to-violet-600/5" iconColor="text-violet-400" />
-        <KPICard label="Depreciado" value={`R$ ${(ta - tc).toLocaleString('pt-BR', {maximumFractionDigits: 0})}`} icon={DollarSign} gradient="from-rose-500/20 to-rose-600/5" iconColor="text-rose-400" />
-        <KPICard label="Veículos" value={wv.length} icon={Car} gradient="from-cyan-500/20 to-cyan-600/5" iconColor="text-cyan-400" />
-      </div>
-      <DataTable columns={['Veículo', 'Original', 'Meses', 'Acumulada', 'Atual', '% Dep.']}
-        rows={wv.map((v, i) => {
-          const c = calc(v);
-          return { id: v.id, cells: [
-            <div className="flex items-center gap-2.5"><div className="w-2.5 h-2.5 rounded-full" style={{ background: pieColors[i % pieColors.length] }}></div><div><div className="font-semibold text-white">{v.plate}</div><div className="text-[11px] text-slate-500">{v.model}</div></div></div>,
-            <span className="text-emerald-300">R$ {Number(v.purchase_value).toLocaleString('pt-BR')}</span>,
-            c.months, <span className="text-rose-300">R$ {c.dep.toLocaleString('pt-BR', {maximumFractionDigits: 0})}</span>,
-            <span className="font-semibold text-white">R$ {c.current.toLocaleString('pt-BR', {maximumFractionDigits: 0})}</span>,
-            <div className="inline-flex items-center gap-2"><div className="w-16 h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full bg-gradient-to-r from-rose-500 to-rose-400" style={{ width: `${Math.min(100, c.pct)}%` }}></div></div><span className="text-xs text-slate-400 w-12 text-right">{c.pct.toFixed(1)}%</span></div>
-          ] };
-        })} />
-    </div>
-  );
-}
-
-function ExpensesView({ vehicles, expenses, insurances, openModal, removeItem, getVehicleName }) {
-  const [section, setSection] = useState('insurances');
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const status = (i) => {
-    const d = Math.ceil((new Date(i.end_date) - today) / 86400000);
-    if (d < 0) return { d, label: 'Vencido', cls: 'bg-rose-500/10 text-rose-300 border-rose-500/20' };
-    if (d <= 30) return { d, label: 'Crítico', cls: 'bg-rose-500/10 text-rose-300 border-rose-500/20' };
-    if (d <= 60) return { d, label: 'Atenção', cls: 'bg-amber-500/10 text-amber-300 border-amber-500/20' };
-    return { d, label: 'Ok', cls: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' };
-  };
-
-  return (
-    <div>
-      <PageHeader title="Despesas gerais" subtitle="Seguros, IPVA, licenciamento" />
-      <div className="flex gap-1 mb-8 p-1 rounded-xl bg-slate-900/50 border border-slate-800 w-fit">
-        <TabBtn active={section === 'insurances'} onClick={() => setSection('insurances')} icon={Shield}>Seguros</TabBtn>
-        <TabBtn active={section === 'expenses'} onClick={() => setSection('expenses')} icon={Receipt}>Despesas</TabBtn>
-      </div>
-
-      {section === 'insurances' && (
-        <SectionPage title="Seguros" subtitle={`${insurances.length} cadastrados`} canAdd={vehicles.length > 0} onAdd={() => openModal('insurance')} empty={insurances.length === 0} emptyIcon={Shield} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem seguros"}>
-          <div className="grid md:grid-cols-2 gap-4">
-            {insurances.map(ins => {
-              const st = status(ins);
-              return (
-                <div key={ins.id} className="group rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="font-semibold text-white">{getVehicleName(ins.vehicle_id)}</div>
-                        <span className={`inline-flex px-2 py-0.5 text-[10px] rounded-full border ${st.cls}`}>{st.label}</span>
-                      </div>
-                      <div className="text-xs text-slate-400">{ins.company}</div>
-                    </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openModal('insurance', ins)} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400"><Pencil size={14} /></button>
-                      <button onClick={() => removeItem('insurances', ins.id, 'Seguro')} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-400"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 mb-4">
-                    <span>{new Date(ins.start_date).toLocaleDateString('pt-BR')}</span>
-                    <span>{st.d < 0 ? `Vencido há ${Math.abs(st.d)}d` : `${st.d}d restantes`}</span>
-                    <span>{new Date(ins.end_date).toLocaleDateString('pt-BR')}</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-800">
-                    <div><div className="text-[10px] text-slate-500 uppercase">Prêmio</div><div className="text-sm font-semibold text-white mt-0.5">R$ {Number(ins.premium || 0).toLocaleString('pt-BR', {maximumFractionDigits: 0})}</div></div>
-                    <div><div className="text-[10px] text-slate-500 uppercase">Cobertura</div><div className="text-sm font-semibold text-white mt-0.5">R$ {Number(ins.coverage || 0).toLocaleString('pt-BR', {maximumFractionDigits: 0})}</div></div>
-                    <div><div className="text-[10px] text-slate-500 uppercase">Franquia</div><div className="text-sm font-semibold text-white mt-0.5">R$ {Number(ins.deductible || 0).toLocaleString('pt-BR', {maximumFractionDigits: 0})}</div></div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </SectionPage>
-      )}
-
-      {section === 'expenses' && (
-        <SectionPage title="Despesas" subtitle={`${expenses.length} registros`} canAdd={vehicles.length > 0} onAdd={() => openModal('expense')} empty={expenses.length === 0} emptyIcon={Receipt} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem despesas"}>
-          <DataTable columns={['Data', 'Veículo', 'Tipo', 'Descrição', 'Valor']}
-            rows={expenses.map(e => ({ id: e.id, cells: [
-              new Date(e.date).toLocaleDateString('pt-BR'),
-              <span className="text-white">{getVehicleName(e.vehicle_id)}</span>,
-              <span className="inline-flex px-2.5 py-1 text-[11px] bg-violet-500/10 text-violet-300 rounded-full border border-violet-500/20">{e.type}</span>,
-              e.description || '—',
-              <span className="font-semibold text-white">R$ {Number(e.value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-            ], onEdit: () => openModal('expense', e),
-               onRemove: () => removeItem('expenses', e.id, 'Despesa') }))} />
-        </SectionPage>
-      )}
-    </div>
-  );
-}
-
-function ReservationsView({ vehicles, reservations, openModal, removeItem, updateStatus, getVehicleName }) {
-  const [filter, setFilter] = useState('all');
-  const sc = {
-    pendente: { cls: 'bg-amber-500/10 text-amber-300 border-amber-500/20', label: 'Pendente' },
-    confirmada: { cls: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20', label: 'Confirmada' },
-    em_andamento: { cls: 'bg-violet-500/10 text-violet-300 border-violet-500/20', label: 'Em andamento' },
-    concluida: { cls: 'bg-slate-500/10 text-slate-300 border-slate-500/20', label: 'Concluída' },
-    cancelada: { cls: 'bg-rose-500/10 text-rose-300 border-rose-500/20', label: 'Cancelada' },
-    rejeitada: { cls: 'bg-rose-500/10 text-rose-300 border-rose-500/20', label: 'Rejeitada' }
-  };
-  const fmt = (dt) => new Date(dt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  const filtered = filter === 'all' ? reservations : reservations.filter(r => r.status === filter);
-
-  return (
-    <div>
-      <PageHeader title="Reservas" subtitle={`${reservations.length} solicitações`} onAdd={vehicles.length > 0 ? () => openModal('reservation') : null} />
-      <div className="flex gap-2 flex-wrap mb-6">
-        {['all', 'pendente', 'confirmada', 'em_andamento', 'concluida'].map(s => {
-          const count = s === 'all' ? reservations.length : reservations.filter(r => r.status === s).length;
-          return (
-            <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${filter === s ? 'bg-violet-500/20 text-violet-300 border-violet-500/30' : 'bg-slate-900/50 text-slate-400 border-slate-800'}`}>
-              {s === 'all' ? 'Todas' : sc[s].label} ({count})
-            </button>
-          );
-        })}
-      </div>
-      {filtered.length === 0 ? <EmptyState icon={CalendarCheck} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem reservas"} /> :
-        <div className="grid md:grid-cols-2 gap-4">
-          {filtered.map(r => (
-            <div key={r.id} className="group rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                    <div className="font-semibold text-white truncate">{r.requester_name}</div>
-                    <span className={`inline-flex px-2 py-0.5 text-[10px] rounded-full border ${sc[r.status]?.cls}`}>{sc[r.status]?.label}</span>
-                  </div>
-                  {r.department && <div className="text-xs text-slate-400">{r.department}</div>}
-                </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => openModal('reservation', r)} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400"><Pencil size={14} /></button>
-                  <button onClick={() => removeItem(r.id)} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-400"><Trash2 size={14} /></button>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-slate-950/50 border border-slate-800">
-                <Car size={14} className="text-cyan-400" /><span className="text-sm font-medium text-white">{getVehicleName(r.vehicle_id)}</span>
-              </div>
-              <div className="space-y-1 text-xs mb-3">
-                <div className="flex items-center gap-2"><Clock size={11} className="text-emerald-400" /><span className="text-slate-400">Retirada:</span><span className="text-white">{fmt(r.start_date_time)}</span></div>
-                <div className="flex items-center gap-2"><Clock size={11} className="text-rose-400" /><span className="text-slate-400">Devolução:</span><span className="text-white">{fmt(r.end_date_time)}</span></div>
-              </div>
-              {r.reason && <div className="pt-3 border-t border-slate-800 text-xs text-slate-300">{r.reason}</div>}
-              {r.status === 'pendente' && (
-                <div className="mt-4 pt-4 border-t border-slate-800 flex gap-2">
-                  <button onClick={() => updateStatus(r.id, 'confirmada')} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium hover:bg-emerald-500/20"><CheckCircle2 size={13} />Aprovar</button>
-                  <button onClick={() => updateStatus(r.id, 'rejeitada')} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-medium hover:bg-rose-500/20"><X size={13} />Rejeitar</button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      }
     </div>
   );
 }
