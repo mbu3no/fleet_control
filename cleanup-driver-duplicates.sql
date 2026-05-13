@@ -1,26 +1,26 @@
 -- =====================================================================
--- FLEET CONTROL - CLEANUP: remove motoristas duplicados após sync da Infleet
--- Data: 2026-05-13
+-- FLEET CONTROL - CLEANUP: motoristas duplicados após sync da Infleet
+-- Data: 2026-05-13 (v2 — matching por prefixo de palavras)
 -- =====================================================================
--- Bug: o sync anterior criou duplicatas dos motoristas que já existiam
--- localmente (matching de nome falhou por causa de regex bugada).
+-- O sync criou duplicatas porque o nome local é menor que o da Infleet:
+--   Local:    "ARNALDO OLIVEIRA"
+--   Infleet:  "Arnaldo Oliveira Soares"
 --
--- Este script:
--- 1. Identifica pares onde o mesmo nome (ignorando acento/case/espaço extra)
---    existe duas vezes: uma versão local (sem infleet_id) e uma da Infleet.
--- 2. Apaga a versão da Infleet, mantendo a local.
+-- Este script faz matching por PREFIXO DE PALAVRAS:
+--   o nome local normalizado precisa ser o começo do nome da Infleet.
+-- Exige que o nome local tenha ao menos 2 palavras (evita matches frouxos).
 --
--- DEPOIS:
--- 1. Redeploy da Edge Function com a regex corrigida.
--- 2. Clica em "Sincronizar agora" no app.
--- 3. Os motoristas originais agora pegam o infleet_id corretamente.
+-- Comportamento:
+--   1. Transfere infleet_id do duplicado para o motorista local original
+--   2. Apaga o duplicado da Infleet
+--   3. O motorista local agora fica linkado à Infleet
 --
--- SEGURO: só apaga drivers com infleet_id que têm um par sem infleet_id.
+-- Depois disso, futuras sincronizações vão atualizar o local
+-- pelo infleet_id (matching forte) sem criar duplicata.
 -- =====================================================================
 
--- Helper: normaliza nome (lowercase + sem acentos PT-BR comuns + espaços colapsados)
--- Usa TRANSLATE (built-in) ao invés de UNACCENT (extension, não habilitado)
--- Pré-checagem: ver os duplicados antes de apagar
+-- PASSO 1 — Preview: ver os pares que seriam mesclados.
+-- Execute esta query primeiro e confira se os pares estão certos.
 
 WITH normalized AS (
   SELECT
@@ -38,42 +38,71 @@ WITH normalized AS (
   FROM drivers
 )
 SELECT
-  a.id AS original_id, a.name AS original_name,
-  b.id AS infleet_id_para_apagar, b.name AS infleet_name
-FROM normalized a
-JOIN normalized b ON a.norm = b.norm AND a.id <> b.id
-WHERE a.infleet_id IS NULL
-  AND b.infleet_id IS NOT NULL
-ORDER BY a.name;
+  local.id AS local_id,
+  local.name AS local_name,
+  inf.id AS infleet_dup_id,
+  inf.name AS infleet_name,
+  inf.infleet_id AS infleet_id_to_transfer
+FROM normalized local
+JOIN normalized inf
+  ON local.infleet_id IS NULL
+ AND inf.infleet_id IS NOT NULL
+ AND local.id <> inf.id
+ AND (inf.norm = local.norm OR inf.norm LIKE local.norm || ' %')
+ AND ARRAY_LENGTH(STRING_TO_ARRAY(local.norm, ' '), 1) >= 2
+ORDER BY local.name;
 
--- Se o resultado acima estiver correto (3 pares esperados), rode o DELETE abaixo:
+-- PASSO 2 — Action: se o preview acima estiver correto, rode este bloco.
+-- Faz UPDATE + DELETE numa única transação (DO block).
 
-WITH normalized AS (
-  SELECT
-    id,
-    name,
-    infleet_id,
-    LOWER(REGEXP_REPLACE(
-      TRANSLATE(
-        name,
-        'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ',
-        'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC'
-      ),
-      '\s+', ' ', 'g'
-    )) AS norm
-  FROM drivers
-),
-duplicates_to_delete AS (
-  SELECT n.id
-  FROM normalized n
-  WHERE n.infleet_id IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM normalized o
-      WHERE o.infleet_id IS NULL
-        AND o.norm = n.norm
-        AND o.id <> n.id
+DO $$
+DECLARE
+  pair RECORD;
+  cnt_updated INT := 0;
+  cnt_deleted INT := 0;
+BEGIN
+  FOR pair IN (
+    WITH normalized AS (
+      SELECT
+        id, name, infleet_id,
+        LOWER(REGEXP_REPLACE(
+          TRANSLATE(name,
+            'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ',
+            'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC'),
+          '\s+', ' ', 'g'
+        )) AS norm
+      FROM drivers
     )
-)
-DELETE FROM drivers WHERE id IN (SELECT id FROM duplicates_to_delete)
-RETURNING id, name;
--- Output: lista das linhas apagadas (deve ser 3)
+    SELECT
+      local.id AS local_id,
+      inf.id AS dup_id,
+      inf.infleet_id AS new_infleet_id
+    FROM normalized local
+    JOIN normalized inf
+      ON local.infleet_id IS NULL
+     AND inf.infleet_id IS NOT NULL
+     AND local.id <> inf.id
+     AND (inf.norm = local.norm OR inf.norm LIKE local.norm || ' %')
+     AND ARRAY_LENGTH(STRING_TO_ARRAY(local.norm, ' '), 1) >= 2
+  )
+  LOOP
+    UPDATE drivers
+       SET infleet_id = pair.new_infleet_id,
+           last_synced_at = NOW()
+     WHERE id = pair.local_id;
+    cnt_updated := cnt_updated + 1;
+
+    DELETE FROM drivers WHERE id = pair.dup_id;
+    cnt_deleted := cnt_deleted + 1;
+  END LOOP;
+
+  RAISE NOTICE 'Cleanup concluído: % motoristas locais linkados, % duplicatas removidas.', cnt_updated, cnt_deleted;
+END $$;
+
+-- PASSO 3 — Verificação: ver quantos motoristas têm infleet_id agora.
+SELECT
+  COUNT(*) FILTER (WHERE infleet_id IS NOT NULL) AS com_infleet,
+  COUNT(*) FILTER (WHERE infleet_id IS NULL) AS sem_infleet,
+  COUNT(*) AS total
+FROM drivers;
+-- Resultado esperado: com_infleet = 14, sem_infleet = 0, total = 14
