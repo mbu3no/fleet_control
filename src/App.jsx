@@ -50,18 +50,20 @@ export default function App() {
 
   const showToast = (type, title, message, duration) => setToast({ type, title, message, duration });
 
-  const syncInfleetVehicles = async () => {
+  const syncInfleet = async () => {
     setSyncingInfleet(true);
     try {
       const { data, error } = await supabase.functions.invoke('sync-infleet-vehicles', { body: {} });
       if (error) throw new Error(error.message || String(error));
       if (!data?.ok) throw new Error(data?.error || 'Falha na sincronização');
-      const { inserted = 0, updated = 0, errors = [] } = data;
-      if (errors.length > 0) {
-        showToast('error', 'Sincronização com avisos', `${inserted} novos, ${updated} atualizados, ${errors.length} erros — ver console`);
-        console.error('[Infleet sync] erros:', errors);
+      const v = data.vehicles || { inserted: 0, updated: 0, errors: [] };
+      const d = data.drivers || { inserted: 0, updated: 0, errors: [] };
+      const totalErrors = (v.errors?.length || 0) + (d.errors?.length || 0);
+      const summary = `Veículos: ${v.inserted} novos, ${v.updated} atualizados · Motoristas: ${d.inserted} novos, ${d.updated} atualizados`;
+      if (totalErrors > 0) {
+        showToast('error', 'Sincronização com avisos', `${summary} · ${totalErrors} erros`);
       } else {
-        showToast('success', 'Sincronização concluída', `${inserted} novos · ${updated} atualizados`);
+        showToast('success', 'Sincronização concluída', summary);
       }
       await loadAll();
     } catch (e) {
@@ -177,13 +179,17 @@ export default function App() {
 
   const saveDriver = () => {
     if (!formData.name?.trim()) { showToast('error', 'Erro', 'Nome é obrigatório'); return; }
-    saveGeneric('drivers', {
-      name: formData.name.trim(),
-      cnh: formData.cnh?.trim() || null,
+    const isInfleet = !!formData.infleet_id;
+    const payload = {
       phone: formData.phone?.trim() || null,
       company_id: formData.company_id ? Number(formData.company_id) : null,
       cost_center_id: formData.cost_center_id ? Number(formData.cost_center_id) : null
-    }, formData.id, 'Motorista');
+    };
+    if (!isInfleet) {
+      payload.name = formData.name.trim();
+      payload.cnh = formData.cnh?.trim() || null;
+    }
+    saveGeneric('drivers', payload, formData.id, 'Motorista');
   };
 
   const saveFueling = () => {
@@ -441,7 +447,7 @@ export default function App() {
                   syncedCount={vehicles.filter(v => v.infleet_id).length}
                   totalCount={vehicles.length}
                   lastSync={vehicles.reduce((a, v) => (v.last_synced_at && (!a || v.last_synced_at > a)) ? v.last_synced_at : a, null)}
-                  onSync={syncInfleetVehicles}
+                  onSync={syncInfleet}
                   syncing={syncingInfleet}
                 />
                 <div className="flex gap-1 mb-8 p-1 rounded-xl bg-slate-900/50 border border-slate-800 w-fit">
@@ -492,7 +498,16 @@ export default function App() {
             {activeTab === 'expenses' && <ExpensesView vehicles={vehicles} expenses={expenses} insurances={insurances} openModal={openModal} removeItem={removeItem} getVehicleName={getVehicleName} />}
 
             {activeTab === 'drivers' && (
-              <SectionPage title="Motoristas" count={drivers.length} canAdd={true} onAdd={() => openModal('driver')} empty={drivers.length === 0} emptyIcon={Users} emptyText="Sem motoristas">
+              <div>
+                <PageHeader title="Motoristas" count={drivers.length} onAdd={() => openModal('driver')} />
+                <InfleetSyncBar
+                  syncedCount={drivers.filter(d => d.infleet_id).length}
+                  totalCount={drivers.length}
+                  lastSync={drivers.reduce((a, d) => (d.last_synced_at && (!a || d.last_synced_at > a)) ? d.last_synced_at : a, null)}
+                  onSync={syncInfleet}
+                  syncing={syncingInfleet}
+                />
+                {drivers.length === 0 ? <EmptyState icon={Users} text="Sem motoristas cadastrados. Adicione manualmente ou sincronize da Infleet." /> : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {drivers.map(d => {
                     const tripCount = trips.filter(t => t.driver_id == d.id).length;
@@ -504,7 +519,10 @@ export default function App() {
                               {d.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="font-medium text-white truncate">{d.name}</div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div className="font-medium text-white truncate">{d.name}</div>
+                                {d.infleet_id && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
+                              </div>
                               {d.cnh && <div className="text-xs text-slate-400 mt-0.5">CNH {d.cnh}</div>}
                               {d.phone && <div className="text-xs text-slate-500">{d.phone}</div>}
                               <div className="mt-2 space-y-1">
@@ -523,7 +541,8 @@ export default function App() {
                     );
                   })}
                 </div>
-              </SectionPage>
+                )}
+              </div>
             )}
 
             {activeTab === 'trips' && (
@@ -661,8 +680,16 @@ export default function App() {
 
             {showModal === 'driver' && (
               <div className="space-y-4">
-                <Input label="Nome *" value={formData.name} onChange={v => setFormData({...formData, name: v})} />
-                <Input label="CNH" value={formData.cnh} onChange={v => setFormData({...formData, cnh: v})} />
+                {formData.infleet_id && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-[11px] text-sky-200">
+                    <Database size={14} className="text-sky-400 shrink-0 mt-0.5" />
+                    <div>
+                      Motorista sincronizado da <strong>Infleet</strong>. Nome e CNH são gerenciados lá e atualizam automaticamente. Telefone, empresa e centro de custo continuam editáveis localmente.
+                    </div>
+                  </div>
+                )}
+                <Input label="Nome *" value={formData.name} onChange={v => setFormData({...formData, name: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
+                <Input label="CNH" value={formData.cnh} onChange={v => setFormData({...formData, cnh: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
                 <Input label="Telefone" value={formData.phone} onChange={v => setFormData({...formData, phone: v})} />
                 <Select label="Empresa" value={formData.company_id} onChange={v => setFormData({...formData, company_id: v, cost_center_id: ''})} options={companies.map(c => ({value: c.id, label: c.name}))} />
                 <Select label="Centro de custo" value={formData.cost_center_id} onChange={v => setFormData({...formData, cost_center_id: v})} options={costCenters.filter(c => !formData.company_id || c.company_id == formData.company_id).map(c => ({value: c.id, label: `${c.code} · ${c.name}`}))} />

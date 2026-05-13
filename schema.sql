@@ -91,6 +91,8 @@ CREATE TABLE drivers (
   phone TEXT,
   company_id BIGINT REFERENCES companies(id) ON DELETE SET NULL,
   cost_center_id BIGINT REFERENCES cost_centers(id) ON DELETE SET NULL,
+  infleet_id TEXT,
+  last_synced_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
