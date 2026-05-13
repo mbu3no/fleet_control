@@ -86,14 +86,16 @@ BEGIN
      AND ARRAY_LENGTH(STRING_TO_ARRAY(local.norm, ' '), 1) >= 2
   )
   LOOP
+    -- Apaga o duplicado PRIMEIRO pra liberar o infleet_id (unique constraint)
+    DELETE FROM drivers WHERE id = pair.dup_id;
+    cnt_deleted := cnt_deleted + 1;
+
+    -- Agora transfere o infleet_id pro motorista local original
     UPDATE drivers
        SET infleet_id = pair.new_infleet_id,
            last_synced_at = NOW()
      WHERE id = pair.local_id;
     cnt_updated := cnt_updated + 1;
-
-    DELETE FROM drivers WHERE id = pair.dup_id;
-    cnt_deleted := cnt_deleted + 1;
   END LOOP;
 
   RAISE NOTICE 'Cleanup concluído: % motoristas locais linkados, % duplicatas removidas.', cnt_updated, cnt_deleted;
