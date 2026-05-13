@@ -8,24 +8,33 @@
 -- Este script:
 -- 1. Identifica pares onde o mesmo nome (ignorando acento/case/espaço extra)
 --    existe duas vezes: uma versão local (sem infleet_id) e uma da Infleet.
--- 2. Apaga a versão da Infleet (sem trips/relações), mantendo a local.
+-- 2. Apaga a versão da Infleet, mantendo a local.
 --
 -- DEPOIS:
 -- 1. Redeploy da Edge Function com a regex corrigida.
 -- 2. Clica em "Sincronizar agora" no app.
--- 3. Os 3 originais agora vão pegar o infleet_id corretamente.
+-- 3. Os motoristas originais agora pegam o infleet_id corretamente.
 --
 -- SEGURO: só apaga drivers com infleet_id que têm um par sem infleet_id.
--- Não toca em motoristas sem duplicata.
 -- =====================================================================
 
--- Pré-checagem: ver os duplicados
+-- Helper: normaliza nome (lowercase + sem acentos PT-BR comuns + espaços colapsados)
+-- Usa TRANSLATE (built-in) ao invés de UNACCENT (extension, não habilitado)
+-- Pré-checagem: ver os duplicados antes de apagar
+
 WITH normalized AS (
   SELECT
     id,
     name,
     infleet_id,
-    LOWER(REGEXP_REPLACE(UNACCENT(name), '\s+', ' ', 'g')) AS norm
+    LOWER(REGEXP_REPLACE(
+      TRANSLATE(
+        name,
+        'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ',
+        'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC'
+      ),
+      '\s+', ' ', 'g'
+    )) AS norm
   FROM drivers
 )
 SELECT
@@ -34,16 +43,24 @@ SELECT
 FROM normalized a
 JOIN normalized b ON a.norm = b.norm AND a.id <> b.id
 WHERE a.infleet_id IS NULL
-  AND b.infleet_id IS NOT NULL;
+  AND b.infleet_id IS NOT NULL
+ORDER BY a.name;
 
--- Se o resultado acima estiver correto, rode o DELETE abaixo:
+-- Se o resultado acima estiver correto (3 pares esperados), rode o DELETE abaixo:
 
 WITH normalized AS (
   SELECT
     id,
     name,
     infleet_id,
-    LOWER(REGEXP_REPLACE(UNACCENT(name), '\s+', ' ', 'g')) AS norm
+    LOWER(REGEXP_REPLACE(
+      TRANSLATE(
+        name,
+        'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ',
+        'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC'
+      ),
+      '\s+', ' ', 'g'
+    )) AS norm
   FROM drivers
 ),
 duplicates_to_delete AS (
