@@ -42,6 +42,7 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const now = new Date().toISOString();
+    // Vehicles e drivers em paralelo. Trips depende dos dois mapeamentos.
     const [vehicles, drivers] = await Promise.all([
       syncVehicles(supabase, infleetToken, now).catch((e): SyncResult => ({
         inserted: 0,
@@ -55,10 +56,17 @@ Deno.serve(async (req: Request) => {
       })),
     ]);
 
+    const trips = await syncTrips(supabase, infleetToken, now).catch((e): SyncResult => ({
+      inserted: 0,
+      updated: 0,
+      errors: [{ key: "all", action: "fetch_or_sync", error: String((e as Error)?.message || e) }],
+    }));
+
     return json({
       ok: true,
       vehicles,
       drivers,
+      trips,
       synced_at: now,
     });
   } catch (e) {
@@ -78,13 +86,16 @@ function normalizePlate(p: string): string {
   return (p || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
+// Normaliza nome para matching: lowercase, sem acentos, sem espaço extra.
+// Filtra por charCode para evitar bug de combining marks invisíveis no source.
 function normalizeName(s: string): string {
-  return (s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  const lower = (s || "").toLowerCase().normalize("NFD");
+  let out = "";
+  for (const ch of lower) {
+    const code = ch.charCodeAt(0);
+    if (code < 0x0300 || code > 0x036F) out += ch;
+  }
+  return out.replace(/\s+/g, " ").trim();
 }
 
 // =====================================================================
@@ -229,6 +240,129 @@ async function syncDrivers(supabase: SupabaseClient, token: string, now: string)
       const { error } = await supabase.from("drivers").insert([insertPayload]);
       if (error) errors.push({ key: idriver.name, action: "insert", error: error.message });
       else inserted++;
+    }
+  }
+
+  return { inserted, updated, errors };
+}
+
+// =====================================================================
+// VIAGENS (Trips)
+// =====================================================================
+interface InfleetTrip {
+  startedAt: string;
+  finishedAt: string;
+  distanceTraveled: number | null;
+  driver: { id: string; name: string } | null;
+  vehicle: { id: string; plate: string } | null;
+}
+
+async function fetchInfleetTripsForVehicle(token: string, infleetVehicleId: string, from: string, to: string): Promise<InfleetTrip[]> {
+  const query = `query Trips($filter: ListVehicleTripsFilterInput!) {
+    trips(filter: $filter) {
+      startedAt finishedAt distanceTraveled
+      driver { id name }
+      vehicle { id plate }
+    }
+  }`;
+  const variables = {
+    filter: {
+      fixTime: { startAt: from, endAt: to },
+      vehicle_id: infleetVehicleId,
+    },
+  };
+  const res = await fetch(INFLEET_URL, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) throw new Error(`Infleet HTTP ${res.status}: ${await res.text()}`);
+  const body = await res.json();
+  if (body.errors) throw new Error(`Infleet GraphQL (trips ${infleetVehicleId}): ${JSON.stringify(body.errors)}`);
+  return (body?.data?.trips || []) as InfleetTrip[];
+}
+
+async function syncTrips(supabase: SupabaseClient, token: string, now: string): Promise<SyncResult> {
+  // Janela de sincronização: últimos 30 dias
+  const toDate = new Date();
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - 30);
+  const from = fromDate.toISOString();
+  const to = toDate.toISOString();
+
+  // 1. Pega veículos sincronizados com infleet_id e mapeia infleet_id -> local id
+  const { data: vehicles, error: vErr } = await supabase
+    .from("vehicles")
+    .select("id, infleet_id")
+    .not("infleet_id", "is", null);
+  if (vErr) throw vErr;
+  const vehicleByInfleet = new Map<string, number>();
+  for (const v of vehicles || []) {
+    if (v.infleet_id) vehicleByInfleet.set(v.infleet_id, v.id);
+  }
+
+  // 2. Mapa motorista
+  const { data: drivers, error: dErr } = await supabase
+    .from("drivers")
+    .select("id, infleet_id");
+  if (dErr) throw dErr;
+  const driverByInfleet = new Map<string, number>();
+  for (const d of drivers || []) {
+    if (d.infleet_id) driverByInfleet.set(d.infleet_id, d.id);
+  }
+
+  // 3. Chaves já existentes no banco (pra dedup)
+  const { data: existingTrips, error: tErr } = await supabase
+    .from("trips")
+    .select("infleet_trip_key")
+    .not("infleet_trip_key", "is", null);
+  if (tErr) throw tErr;
+  const existingKeys = new Set<string>((existingTrips || []).map((t) => t.infleet_trip_key as string));
+
+  let inserted = 0;
+  let updated = 0;
+  const errors: SyncResult["errors"] = [];
+
+  // 4. Pra cada veículo, busca viagens no período
+  for (const [infleetVehicleId, localVehicleId] of vehicleByInfleet.entries()) {
+    let infleetTrips: InfleetTrip[];
+    try {
+      infleetTrips = await fetchInfleetTripsForVehicle(token, infleetVehicleId, from, to);
+    } catch (e) {
+      errors.push({ key: infleetVehicleId, action: "fetch", error: String((e as Error)?.message || e) });
+      continue;
+    }
+
+    for (const trip of infleetTrips) {
+      if (!trip.startedAt || !trip.vehicle || !trip.driver) continue;
+      const key = `${trip.vehicle.id}__${trip.startedAt}`;
+      if (existingKeys.has(key)) continue; // já temos
+
+      const localDriverId = driverByInfleet.get(trip.driver.id);
+      if (!localDriverId) {
+        errors.push({ key, action: "insert", error: `motorista Infleet ${trip.driver.id} não mapeado` });
+        continue;
+      }
+
+      const km = trip.distanceTraveled != null ? Math.round(Number(trip.distanceTraveled) * 100) / 100 : 0;
+      const date = trip.startedAt.slice(0, 10);
+
+      const { error: insErr } = await supabase.from("trips").insert([{
+        vehicle_id: localVehicleId,
+        driver_id: localDriverId,
+        date,
+        km,
+        started_at: trip.startedAt,
+        finished_at: trip.finishedAt,
+        infleet_trip_key: key,
+        last_synced_at: now,
+      }]);
+      if (insErr) {
+        errors.push({ key, action: "insert", error: insErr.message });
+      } else {
+        inserted++;
+        existingKeys.add(key);
+      }
     }
   }
 

@@ -124,9 +124,13 @@ CREATE TABLE trips (
   vehicle_id BIGINT NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
   driver_id BIGINT NOT NULL REFERENCES drivers(id) ON DELETE CASCADE,
   date DATE NOT NULL DEFAULT CURRENT_DATE,
-  origin TEXT NOT NULL,
-  destination TEXT NOT NULL,
+  origin TEXT,
+  destination TEXT,
   km NUMERIC(12, 2) DEFAULT 0,
+  infleet_trip_key TEXT,
+  last_synced_at TIMESTAMPTZ,
+  started_at TIMESTAMPTZ,
+  finished_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

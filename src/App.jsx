@@ -58,8 +58,9 @@ export default function App() {
       if (!data?.ok) throw new Error(data?.error || 'Falha na sincronização');
       const v = data.vehicles || { inserted: 0, updated: 0, errors: [] };
       const d = data.drivers || { inserted: 0, updated: 0, errors: [] };
-      const totalErrors = (v.errors?.length || 0) + (d.errors?.length || 0);
-      const summary = `Veículos: ${v.inserted} novos, ${v.updated} atualizados · Motoristas: ${d.inserted} novos, ${d.updated} atualizados`;
+      const t = data.trips || { inserted: 0, updated: 0, errors: [] };
+      const totalErrors = (v.errors?.length || 0) + (d.errors?.length || 0) + (t.errors?.length || 0);
+      const summary = `Veículos: +${v.inserted}/~${v.updated} · Motoristas: +${d.inserted}/~${d.updated} · Viagens: +${t.inserted}`;
       if (totalErrors > 0) {
         showToast('error', 'Sincronização com avisos', `${summary} · ${totalErrors} erros`);
       } else {
@@ -215,13 +216,13 @@ export default function App() {
   };
 
   const saveTrip = () => {
-    if (!formData.vehicle_id || !formData.driver_id || !formData.origin?.trim() || !formData.destination?.trim()) { showToast('error', 'Erro', 'Todos os campos principais são obrigatórios'); return; }
+    if (!formData.vehicle_id || !formData.driver_id) { showToast('error', 'Erro', 'Veículo e motorista são obrigatórios'); return; }
     saveGeneric('trips', {
       vehicle_id: Number(formData.vehicle_id),
       driver_id: Number(formData.driver_id),
       date: formData.date || new Date().toISOString().split('T')[0],
-      origin: formData.origin.trim(),
-      destination: formData.destination.trim(),
+      origin: formData.origin?.trim() || null,
+      destination: formData.destination?.trim() || null,
       km: Number(formData.km) || 0
     }, formData.id, 'Viagem');
   };
@@ -546,17 +547,32 @@ export default function App() {
             )}
 
             {activeTab === 'trips' && (
-              <SectionPage title="Viagens" count={trips.length} canAdd={vehicles.length > 0 && drivers.length > 0} onAdd={() => openModal('trip')} empty={trips.length === 0} emptyIcon={MapPin} emptyText={vehicles.length === 0 || drivers.length === 0 ? "Cadastre veículos e motoristas primeiro" : "Sem viagens"}>
+              <div>
+                <PageHeader title="Viagens" count={trips.length} onAdd={vehicles.length > 0 && drivers.length > 0 ? () => openModal('trip') : null} />
+                <InfleetSyncBar
+                  syncedCount={trips.filter(t => t.infleet_trip_key).length}
+                  totalCount={trips.length}
+                  lastSync={trips.reduce((a, t) => (t.last_synced_at && (!a || t.last_synced_at > a)) ? t.last_synced_at : a, null)}
+                  onSync={syncInfleet}
+                  syncing={syncingInfleet}
+                />
+                {trips.length === 0 ? <EmptyState icon={MapPin} text={vehicles.length === 0 || drivers.length === 0 ? "Cadastre veículos e motoristas primeiro" : "Sem viagens — adicione manualmente ou sincronize da Infleet."} /> : (
                 <DataTable columns={['Data', 'Motorista', 'Veículo', 'Rota', 'Km']}
                   rows={trips.map(t => ({ id: t.id, cells: [
-                    new Date(t.date).toLocaleDateString('pt-BR'),
-                    <span className="text-white">{getDriverName(t.driver_id)}</span>,
+                    <span className="flex items-center gap-2">
+                      <span className="tabular-nums">{new Date(t.date).toLocaleDateString('pt-BR')}</span>
+                      {t.infleet_trip_key && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
+                    </span>,
+                    <span>{getDriverName(t.driver_id)}</span>,
                     getVehicleName(t.vehicle_id),
-                    <span className="text-slate-300">{t.origin} <span className="text-slate-600">→</span> {t.destination}</span>,
-                    `${t.km} km`
+                    (t.origin || t.destination)
+                      ? <span className="text-slate-300">{t.origin || '—'} <span className="text-slate-600">→</span> {t.destination || '—'}</span>
+                      : <span className="text-slate-500 italic">{t.started_at ? new Date(t.started_at).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '—'} – {t.finished_at ? new Date(t.finished_at).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '—'}</span>,
+                    <span className="tabular-nums">{Number(t.km || 0).toFixed(1).replace('.', ',')} km</span>
                   ], onEdit: () => openModal('trip', t),
                      onRemove: () => removeItem('trips', t.id, 'Viagem') }))} />
-              </SectionPage>
+                )}
+              </div>
             )}
 
             {activeTab === 'allocation' && (
