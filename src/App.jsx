@@ -391,11 +391,7 @@ export default function App() {
               </div>
             </nav>
 
-            <div className="p-4 border-t border-slate-800/50 space-y-2">
-              <button onClick={loadAll} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-800 transition-colors">
-                <RefreshCw size={12} strokeWidth={2} /> Atualizar dados
-              </button>
-
+            <div className="p-4 border-t border-slate-800/50">
               <div className="px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
                 <Wifi size={11} className="text-emerald-400" />
                 <span className="text-[11px] font-medium text-emerald-300">Conectado ao Supabase</span>
@@ -412,6 +408,9 @@ export default function App() {
               <Menu size={18} strokeWidth={2} />
             </button>
             <span className="text-sm font-semibold flex-1">Fleet Control</span>
+            <button onClick={loadAll} disabled={loadingData} className="w-9 h-9 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 transition-colors disabled:opacity-50" title="Atualizar dados" aria-label="Atualizar dados">
+              <RefreshCw size={16} strokeWidth={2} className={loadingData ? 'animate-spin' : ''} />
+            </button>
             <button onClick={() => setActiveTab('settings')} className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${activeTab === 'settings' ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30' : 'hover:bg-slate-800 text-slate-300'}`} title="Configurações" aria-label="Configurações">
               <Settings size={16} strokeWidth={2} />
             </button>
@@ -421,6 +420,9 @@ export default function App() {
           </header>
 
           <header className="hidden lg:flex justify-end items-center gap-1 sticky top-0 z-20 px-6 lg:px-10 py-3">
+            <button onClick={loadAll} disabled={loadingData} className="w-9 h-9 rounded-lg hover:bg-slate-800/60 flex items-center justify-center text-slate-400 hover:text-white transition-colors disabled:opacity-50" title="Atualizar dados" aria-label="Atualizar dados">
+              <RefreshCw size={16} strokeWidth={2} className={loadingData ? 'animate-spin' : ''} />
+            </button>
             <button onClick={() => setActiveTab('settings')} className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${activeTab === 'settings' ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30' : 'hover:bg-slate-800/60 text-slate-400 hover:text-white'}`} title="Configurações" aria-label="Configurações">
               <Settings size={16} strokeWidth={2} />
             </button>
@@ -452,7 +454,7 @@ export default function App() {
                     rows={vehicles.map(v => ({ id: v.id, cells: [
                       <span className="flex items-center gap-2"><span className="font-semibold text-white">{v.plate}</span>{v.infleet_id && <span title="Sincronizado da Infleet" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium">INFLEET</span>}</span>, v.model, v.year || '—',
                       `${Number(v.current_km || 0).toLocaleString('pt-BR')} km`,
-                      v.purchase_value > 0 ? <span className="text-emerald-300">R$ {Number(v.purchase_value).toLocaleString('pt-BR')}</span> : '—',
+                      v.purchase_value > 0 ? <span className="tabular-nums">R$ {Number(v.purchase_value).toLocaleString('pt-BR')}</span> : '—',
                       <span className="inline-flex px-2 py-0.5 text-[10px] font-medium tracking-wide bg-emerald-500/10 text-emerald-300 rounded-full border border-emerald-500/20">{v.status}</span>
                     ], onEdit: () => openModal('vehicle', v),
                        onRemove: () => removeItem('vehicles', v.id, 'Veículo') }))} />

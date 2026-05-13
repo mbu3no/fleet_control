@@ -77,21 +77,26 @@ export function TabBtn({ active, onClick, icon: Icon, children }) {
 }
 
 export function DataTable({ columns, rows }) {
+  const lastColIdx = columns.length - 1;
   return (
     <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50">
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[calc(100vh-220px)]">
         <table className="w-full">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-slate-900 backdrop-blur-xl">
             <tr className="border-b border-slate-800">
-              {columns.map((col, i) => <th key={i} className="text-left px-6 py-3.5 text-[11px] font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">{col}</th>)}
-              <th className="px-6 py-3.5"></th>
+              {columns.map((col, i) => (
+                <th key={i} className={`text-left px-6 py-3.5 text-[11px] font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap ${i < lastColIdx ? 'border-r border-slate-800/60' : ''}`}>{col}</th>
+              ))}
+              <th className="px-6 py-3.5 border-l border-slate-800/60"></th>
             </tr>
           </thead>
           <tbody>
             {rows.map(row => (
               <tr key={row.id} className="border-b border-slate-800/50 last:border-0 text-sm text-slate-300 hover:bg-slate-800/30 transition-colors duration-150 group">
-                {row.cells.map((cell, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{cell}</td>)}
-                <td className="px-6 py-4 text-right whitespace-nowrap">
+                {row.cells.map((cell, i) => (
+                  <td key={i} className={`px-6 py-4 whitespace-nowrap ${i < lastColIdx ? 'border-r border-slate-800/40' : ''}`}>{cell}</td>
+                ))}
+                <td className="px-6 py-4 text-right whitespace-nowrap border-l border-slate-800/40">
                   <div className="inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                     {row.onEdit && <button onClick={row.onEdit} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-violet-400 transition-colors"><Pencil size={14} /></button>}
                     {row.onRemove && <button onClick={row.onRemove} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors"><Trash2 size={14} /></button>}
@@ -150,7 +155,7 @@ export function KPICard({ label, value, icon: Icon, gradient, iconColor }) {
           <span className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">{label}</span>
           <Icon size={16} className={iconColor} strokeWidth={2} />
         </div>
-        <div className="text-2xl font-semibold text-white tracking-tight tabular-nums">{value}</div>
+        <div className="text-2xl font-bold text-white tracking-tight tabular-nums">{value}</div>
       </div>
     </div>
   );

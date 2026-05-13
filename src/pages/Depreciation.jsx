@@ -31,11 +31,12 @@ export function DepreciationView({ vehicles, pieColors }) {
         rows={wv.map((v, i) => {
           const c = calc(v);
           return { id: v.id, cells: [
-            <div className="flex items-center gap-2.5"><div className="w-2.5 h-2.5 rounded-full" style={{ background: pieColors[i % pieColors.length] }}></div><div><div className="font-semibold text-white">{v.plate}</div><div className="text-[11px] text-slate-500">{v.model}</div></div></div>,
-            <span className="text-emerald-300">R$ {Number(v.purchase_value).toLocaleString('pt-BR')}</span>,
-            c.months, <span className="text-rose-300">R$ {c.dep.toLocaleString('pt-BR', {maximumFractionDigits: 0})}</span>,
-            <span className="font-semibold text-white">R$ {c.current.toLocaleString('pt-BR', {maximumFractionDigits: 0})}</span>,
-            <div className="inline-flex items-center gap-2"><div className="w-16 h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full bg-gradient-to-r from-rose-500 to-rose-400" style={{ width: `${Math.min(100, c.pct)}%` }}></div></div><span className="text-xs text-slate-400 w-12 text-right">{c.pct.toFixed(1)}%</span></div>
+            <div className="flex items-center gap-2.5"><div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: pieColors[i % pieColors.length] }}></div><div><div className="font-semibold">{v.plate}</div><div className="text-[11px] text-slate-500">{v.model}</div></div></div>,
+            <span className="tabular-nums">R$ {Number(v.purchase_value).toLocaleString('pt-BR')}</span>,
+            <span className="tabular-nums">{c.months}</span>,
+            <span className="tabular-nums">R$ {c.dep.toLocaleString('pt-BR', {maximumFractionDigits: 0})}</span>,
+            <span className="font-semibold tabular-nums">R$ {c.current.toLocaleString('pt-BR', {maximumFractionDigits: 0})}</span>,
+            <div className="inline-flex items-center gap-2"><div className="w-16 h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full bg-gradient-to-r from-rose-500 to-rose-400" style={{ width: `${Math.min(100, c.pct)}%` }}></div></div><span className="text-xs text-slate-400 w-12 text-right tabular-nums">{c.pct.toFixed(1)}%</span></div>
           ] };
         })} />
     </div>
