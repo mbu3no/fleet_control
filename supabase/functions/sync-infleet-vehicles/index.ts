@@ -62,11 +62,18 @@ Deno.serve(async (req: Request) => {
       errors: [{ key: "all", action: "fetch_or_sync", error: String((e as Error)?.message || e) }],
     }));
 
+    const expenses = await syncExpenses(supabase, infleetToken, now).catch((e): SyncResult => ({
+      inserted: 0,
+      updated: 0,
+      errors: [{ key: "all", action: "fetch_or_sync", error: String((e as Error)?.message || e) }],
+    }));
+
     return json({
       ok: true,
       vehicles,
       drivers,
       trips,
+      expenses,
       synced_at: now,
     });
   } catch (e) {
@@ -364,6 +371,130 @@ async function syncTrips(supabase: SupabaseClient, token: string, now: string): 
         inserted++;
         existingKeys.add(key);
       }
+    }
+  }
+
+  return { inserted, updated, errors };
+}
+
+// =====================================================================
+// DESPESAS (Expenses)
+// =====================================================================
+interface InfleetExpense {
+  id: string;
+  title: string;
+  amount: string | number | null;
+  description: string | null;
+  dueDate: string;
+  paidAt: string | null;
+  deletedAt: string | null;
+  type: string | null;
+  category: { name: string } | null;
+  vehicle: { id: string } | null;
+  costCenter: string | null;
+}
+
+async function fetchInfleetExpenses(token: string, fromIso: string, toIso: string): Promise<InfleetExpense[]> {
+  const query = `query Expenses($filter: ListExpensesFilterInput!) {
+    listExpenses(filter: $filter) {
+      id title amount description dueDate paidAt deletedAt type costCenter
+      category { name }
+      vehicle { id }
+    }
+  }`;
+  const variables = { filter: { occurredAt: { startAt: fromIso, endAt: toIso } } };
+  const res = await fetch(INFLEET_URL, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) throw new Error(`Infleet HTTP ${res.status}: ${await res.text()}`);
+  const body = await res.json();
+  if (body.errors) throw new Error(`Infleet GraphQL (expenses): ${JSON.stringify(body.errors)}`);
+  const list: InfleetExpense[] = body?.data?.listExpenses || [];
+  return list.filter((e) => !e.deletedAt);
+}
+
+async function syncExpenses(supabase: SupabaseClient, token: string, now: string): Promise<SyncResult> {
+  // Janela maior que trips porque despesas podem ser retroativas: últimos 365 dias
+  const toDate = new Date();
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - 365);
+
+  const infleetExpenses = await fetchInfleetExpenses(token, fromDate.toISOString(), toDate.toISOString());
+
+  // Mapa de vehicle infleet_id → local id
+  const { data: vehicles, error: vErr } = await supabase
+    .from("vehicles")
+    .select("id, infleet_id")
+    .not("infleet_id", "is", null);
+  if (vErr) throw vErr;
+  const vehicleByInfleet = new Map<string, number>();
+  for (const v of vehicles || []) {
+    if (v.infleet_id) vehicleByInfleet.set(v.infleet_id, v.id);
+  }
+
+  // Expenses já existentes (matching por infleet_id)
+  const { data: existing, error: eErr } = await supabase
+    .from("expenses")
+    .select("id, infleet_id")
+    .not("infleet_id", "is", null);
+  if (eErr) throw eErr;
+  const byInfleetId = new Map<string, number>();
+  for (const e of existing || []) {
+    if (e.infleet_id) byInfleetId.set(e.infleet_id, e.id);
+  }
+
+  let inserted = 0;
+  let updated = 0;
+  const errors: SyncResult["errors"] = [];
+
+  for (const exp of infleetExpenses) {
+    if (!exp.vehicle?.id) {
+      errors.push({ key: exp.id, action: "skip", error: "expense sem vehicleId" });
+      continue;
+    }
+    const localVehicleId = vehicleByInfleet.get(exp.vehicle.id);
+    if (!localVehicleId) {
+      errors.push({ key: exp.id, action: "skip", error: `veículo Infleet ${exp.vehicle.id} não mapeado` });
+      continue;
+    }
+
+    // Date: paidAt se pago, senão dueDate. Sempre em BRT.
+    const refIso = exp.paidAt || exp.dueDate;
+    const date = new Date(refIso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const dueDate = new Date(exp.dueDate).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
+    // Tipo: categoria.name → fallback type → fallback "Outros"
+    const type = exp.category?.name || exp.type || "Outros";
+
+    // Descrição: title + (description se diferente)
+    const desc = exp.description && exp.description !== exp.title
+      ? `${exp.title} — ${exp.description}`
+      : exp.title;
+
+    const value = exp.amount != null ? Number(exp.amount) : 0;
+
+    const payload = {
+      infleet_id: exp.id,
+      vehicle_id: localVehicleId,
+      type,
+      date,
+      due_date: dueDate,
+      value: isNaN(value) ? 0 : Math.round(value * 100) / 100,
+      description: desc,
+      last_synced_at: now,
+    };
+
+    const match = byInfleetId.get(exp.id);
+    if (match) {
+      const { error } = await supabase.from("expenses").update(payload).eq("id", match);
+      if (error) errors.push({ key: exp.id, action: "update", error: error.message });
+      else updated++;
+    } else {
+      const { error } = await supabase.from("expenses").insert([payload]);
+      if (error) errors.push({ key: exp.id, action: "insert", error: error.message });
+      else inserted++;
     }
   }
 

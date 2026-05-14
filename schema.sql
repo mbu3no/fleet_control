@@ -143,6 +143,8 @@ CREATE TABLE expenses (
   due_date DATE,
   value NUMERIC(12, 2) NOT NULL,
   description TEXT,
+  infleet_id TEXT,
+  last_synced_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

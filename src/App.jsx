@@ -60,8 +60,9 @@ export default function App() {
       const v = data.vehicles || { inserted: 0, updated: 0, errors: [] };
       const d = data.drivers || { inserted: 0, updated: 0, errors: [] };
       const t = data.trips || { inserted: 0, updated: 0, errors: [] };
-      const totalErrors = (v.errors?.length || 0) + (d.errors?.length || 0) + (t.errors?.length || 0);
-      const summary = `Veículos: +${v.inserted}/~${v.updated} · Motoristas: +${d.inserted}/~${d.updated} · Viagens: +${t.inserted}`;
+      const e = data.expenses || { inserted: 0, updated: 0, errors: [] };
+      const totalErrors = (v.errors?.length || 0) + (d.errors?.length || 0) + (t.errors?.length || 0) + (e.errors?.length || 0);
+      const summary = `Veículos: +${v.inserted}/~${v.updated} · Motoristas: +${d.inserted}/~${d.updated} · Viagens: +${t.inserted} · Despesas: +${e.inserted}/~${e.updated}`;
       if (totalErrors > 0) {
         showToast('error', 'Sincronização com avisos', `${summary} · ${totalErrors} erros`);
       } else {
@@ -230,6 +231,11 @@ export default function App() {
 
   const saveExpense = () => {
     if (!formData.vehicle_id || !formData.type?.trim() || !formData.value) { showToast('error', 'Erro', 'Veículo, tipo e valor são obrigatórios'); return; }
+    const isInfleet = !!formData.infleet_id;
+    if (isInfleet) {
+      showToast('info', 'Despesa gerenciada pela Infleet', 'Edite na Infleet — sincronização automática a cada 3h.');
+      return;
+    }
     saveGeneric('expenses', {
       vehicle_id: Number(formData.vehicle_id),
       type: formData.type,
@@ -497,7 +503,7 @@ export default function App() {
               </SectionPage>
             )}
 
-            {activeTab === 'expenses' && <ExpensesView vehicles={vehicles} expenses={expenses} insurances={insurances} openModal={openModal} removeItem={removeItem} getVehicleName={getVehicleName} />}
+            {activeTab === 'expenses' && <ExpensesView vehicles={vehicles} expenses={expenses} insurances={insurances} openModal={openModal} removeItem={removeItem} getVehicleName={getVehicleName} onSyncInfleet={syncInfleet} syncingInfleet={syncingInfleet} />}
 
             {activeTab === 'drivers' && (
               <div>
@@ -750,13 +756,21 @@ export default function App() {
 
             {showModal === 'expense' && (
               <div className="space-y-4">
+                {formData.infleet_id && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-[11px] text-sky-200">
+                    <Database size={14} className="text-sky-400 shrink-0 mt-0.5" />
+                    <div>
+                      Despesa sincronizada da <strong>Infleet</strong>. Todos os campos são gerenciados lá. Edição local desabilitada.
+                    </div>
+                  </div>
+                )}
                 <Select label="Veículo *" value={formData.vehicle_id} onChange={v => setFormData({...formData, vehicle_id: v})} options={vehicles.map(v => ({value: v.id, label: `${v.plate} · ${v.model}`}))} />
                 <Select label="Tipo *" value={formData.type} onChange={v => setFormData({...formData, type: v})} options={['IPVA', 'Licenciamento', 'DPVAT', 'Multas', 'Pedágio', 'Lavagem', 'Outros'].map(t => ({value: t, label: t}))} />
-                <Input label="Data" type="date" value={formData.date} onChange={v => setFormData({...formData, date: v})} />
-                <Input label="Vencimento" type="date" value={formData.due_date} onChange={v => setFormData({...formData, due_date: v})} />
-                <Input label="Valor (R$) *" type="number" value={formData.value} onChange={v => setFormData({...formData, value: v})} />
-                <Input label="Descrição" value={formData.description} onChange={v => setFormData({...formData, description: v})} />
-                <SaveButton onClick={saveExpense} busy={savingItem} />
+                <Input label="Data" type="date" value={formData.date} onChange={v => setFormData({...formData, date: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
+                <Input label="Vencimento" type="date" value={formData.due_date} onChange={v => setFormData({...formData, due_date: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
+                <Input label="Valor (R$) *" type="number" value={formData.value} onChange={v => setFormData({...formData, value: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
+                <Input label="Descrição" value={formData.description} onChange={v => setFormData({...formData, description: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
+                {!formData.infleet_id && <SaveButton onClick={saveExpense} busy={savingItem} />}
               </div>
             )}
 
