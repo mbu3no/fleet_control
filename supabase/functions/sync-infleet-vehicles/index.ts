@@ -345,7 +345,8 @@ async function syncTrips(supabase: SupabaseClient, token: string, now: string): 
       }
 
       const km = trip.distanceTraveled != null ? Math.round(Number(trip.distanceTraveled) * 100) / 100 : 0;
-      const date = trip.startedAt.slice(0, 10);
+      // Date em horário de Brasília (UTC-3): trip iniciada 01:00 UTC = 22:00 BRT do dia anterior
+      const date = new Date(trip.startedAt).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 
       const { error: insErr } = await supabase.from("trips").insert([{
         vehicle_id: localVehicleId,
