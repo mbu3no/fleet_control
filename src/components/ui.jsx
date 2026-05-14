@@ -131,7 +131,7 @@ export function InfleetSyncBar({ syncedCount, totalCount, lastSync, onSync, sync
         </div>
         <div className="min-w-0">
           <div className="text-sm text-white font-medium">Sincronização Infleet</div>
-          <div className="text-[11px] text-slate-400">
+          <div className="text-xs text-slate-400">
             {syncedCount} de {totalCount} sincronizados
             {lastSync && <> · última sync {fmtRelativeTime(lastSync)}</>}
             {!lastSync && <> · ainda não sincronizado</>}

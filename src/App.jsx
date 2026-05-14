@@ -460,7 +460,7 @@ export default function App() {
                   vehicles.length === 0 ? <EmptyState icon={Car} text="Nenhum veículo cadastrado. Clique em 'Adicionar' para começar ou sincronize da Infleet." /> :
                   <DataTable columns={['Placa', 'Modelo', 'Ano', 'Km', 'Valor', 'Status']}
                     rows={vehicles.map(v => ({ id: v.id, cells: [
-                      <span className="flex items-center gap-2"><span className="font-semibold text-white">{v.plate}</span>{v.infleet_id && <span title="Sincronizado da Infleet" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium">INFLEET</span>}</span>, v.model, v.year || '—',
+                      <span className="flex items-center gap-2"><span className="font-semibold text-white">{v.plate}</span>{v.infleet_id && <span title="Sincronizado da Infleet" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}</span>, v.model, v.year || '—',
                       `${Number(v.current_km || 0).toLocaleString('pt-BR')} km`,
                       v.purchase_value > 0 ? <span className="tabular-nums">R$ {Number(v.purchase_value).toLocaleString('pt-BR')}</span> : '—',
                       <span className="inline-flex px-2 py-0.5 text-[10px] font-medium tracking-wide bg-emerald-500/10 text-emerald-300 rounded-full border border-emerald-500/20">{v.status}</span>
@@ -523,7 +523,7 @@ export default function App() {
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <div className="font-medium text-white truncate">{d.name}</div>
-                                {d.infleet_id && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
+                                {d.infleet_id && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
                               </div>
                               {d.cnh && <div className="text-xs text-slate-400 mt-0.5">CNH {d.cnh}</div>}
                               {d.phone && <div className="text-xs text-slate-500">{d.phone}</div>}
@@ -562,7 +562,7 @@ export default function App() {
                   rows={trips.map(t => ({ id: t.id, cells: [
                     <span className="flex items-center gap-2">
                       <span className="tabular-nums">{formatLocalDate(t.date)}</span>
-                      {t.infleet_trip_key && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
+                      {t.infleet_trip_key && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
                     </span>,
                     <span>{getDriverName(t.driver_id)}</span>,
                     getVehicleName(t.vehicle_id),
