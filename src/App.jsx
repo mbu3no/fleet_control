@@ -5,6 +5,7 @@ import {
   Database, RefreshCw, Wifi, WifiOff, Sun, Moon, Calculator, X,
 } from 'lucide-react';
 import { supabase, fetchTable, insertRow, updateRow, deleteRow } from './lib/supabase.js';
+import { formatLocalDate } from './lib/format.js';
 import {
   Toast, PageHeader, SectionPage, TabBtn, DataTable, EmptyState,
   Input, Select, SaveButton, InfleetSyncBar,
@@ -476,7 +477,7 @@ export default function App() {
               <SectionPage title="Abastecimentos" count={fuelings.length} canAdd={vehicles.length > 0} onAdd={() => openModal('fueling')} empty={fuelings.length === 0} emptyIcon={Fuel} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem abastecimentos"}>
                 <DataTable columns={['Data', 'Veículo', 'Litros', 'Valor', 'Km']}
                   rows={fuelings.map(f => ({ id: f.id, cells: [
-                    new Date(f.date).toLocaleDateString('pt-BR'),
+                    formatLocalDate(f.date),
                     <span className="text-white">{getVehicleName(f.vehicle_id)}</span>,
                     `${f.liters} L`, `R$ ${Number(f.value).toFixed(2)}`, f.km ? Number(f.km).toLocaleString('pt-BR') : '—'
                   ], onEdit: () => openModal('fueling', f),
@@ -488,7 +489,7 @@ export default function App() {
               <SectionPage title="Manutenções" count={maintenances.length} canAdd={vehicles.length > 0} onAdd={() => openModal('maintenance')} empty={maintenances.length === 0} emptyIcon={Wrench} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem manutenções"}>
                 <DataTable columns={['Data', 'Veículo', 'Tipo', 'Custo', 'Próxima (km)']}
                   rows={maintenances.map(m => ({ id: m.id, cells: [
-                    new Date(m.date).toLocaleDateString('pt-BR'),
+                    formatLocalDate(m.date),
                     <span className="text-white">{getVehicleName(m.vehicle_id)}</span>,
                     m.type, `R$ ${Number(m.cost).toFixed(2)}`, m.next_km > 0 ? Number(m.next_km).toLocaleString('pt-BR') : '—'
                   ], onEdit: () => openModal('maintenance', m),
@@ -560,7 +561,7 @@ export default function App() {
                 <DataTable columns={['Data', 'Motorista', 'Veículo', 'Rota', 'Km']}
                   rows={trips.map(t => ({ id: t.id, cells: [
                     <span className="flex items-center gap-2">
-                      <span className="tabular-nums">{new Date(t.date).toLocaleDateString('pt-BR')}</span>
+                      <span className="tabular-nums">{formatLocalDate(t.date)}</span>
                       {t.infleet_trip_key && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
                     </span>,
                     <span>{getDriverName(t.driver_id)}</span>,

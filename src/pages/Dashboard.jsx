@@ -8,6 +8,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { KPICard } from '../components/ui.jsx';
+import { formatLocalDate } from '../lib/format.js';
 
 export function DashboardView({ vehicles, trips, fuelings, maintenances, expenses, insurances, reservations, pieColors }) {
   const totalKm = trips.reduce((s, t) => s + (Number(t.km) || 0), 0);
@@ -412,7 +413,7 @@ function RecentActivity({ fuelings, maintenances, expenses, vehicles }) {
                 <div className="flex-1 min-w-0">
                   <div className="text-white font-medium truncate">{it.kind} · {it.vehicle}</div>
                   <div className="text-slate-500 truncate">
-                    {it.subtitle && `${it.subtitle} · `}{new Date(it.date).toLocaleDateString('pt-BR')}
+                    {it.subtitle && `${it.subtitle} · `}{formatLocalDate(it.date)}
                   </div>
                 </div>
                 <div className="text-white font-semibold tabular-nums whitespace-nowrap">R$ {it.value.toLocaleString('pt-BR', {maximumFractionDigits: 0})}</div>

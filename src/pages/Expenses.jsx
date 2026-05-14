@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pencil, Trash2, Shield, Receipt } from 'lucide-react';
 import { PageHeader, TabBtn, DataTable, SectionPage } from '../components/ui.jsx';
+import { formatLocalDate } from '../lib/format.js';
 
 export function ExpensesView({ vehicles, expenses, insurances, openModal, removeItem, getVehicleName }) {
   const [section, setSection] = useState('insurances');
@@ -62,7 +63,7 @@ export function ExpensesView({ vehicles, expenses, insurances, openModal, remove
         <SectionPage title="Despesas" count={expenses.length} canAdd={vehicles.length > 0} onAdd={() => openModal('expense')} empty={expenses.length === 0} emptyIcon={Receipt} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem despesas"}>
           <DataTable columns={['Data', 'Veículo', 'Tipo', 'Descrição', 'Valor']}
             rows={expenses.map(e => ({ id: e.id, cells: [
-              new Date(e.date).toLocaleDateString('pt-BR'),
+              formatLocalDate(e.date),
               <span className="text-white">{getVehicleName(e.vehicle_id)}</span>,
               <span className="inline-flex px-2 py-0.5 text-[10px] font-medium tracking-wide bg-violet-500/10 text-violet-300 rounded-full border border-violet-500/20">{e.type}</span>,
               e.description || '—',
