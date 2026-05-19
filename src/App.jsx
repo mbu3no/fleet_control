@@ -766,7 +766,7 @@ export default function App() {
                 )}
                 <Select label="Veículo *" value={formData.vehicle_id} onChange={v => setFormData({...formData, vehicle_id: v})} options={vehicles.map(v => ({value: v.id, label: `${v.plate} · ${v.model}`}))} />
                 <Select label="Tipo *" value={formData.type} onChange={v => setFormData({...formData, type: v})} options={['IPVA', 'Licenciamento', 'DPVAT', 'Multas', 'Pedágio', 'Lavagem', 'Outros'].map(t => ({value: t, label: t}))} />
-                <Input label="Data" type="date" value={formData.date} onChange={v => setFormData({...formData, date: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
+                <Input label="Data efetiva (pagamento)" type="date" value={formData.date} onChange={v => setFormData({...formData, date: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id ? 'via Infleet' : 'deixe vazio se ainda não foi paga'} />
                 <Input label="Vencimento" type="date" value={formData.due_date} onChange={v => setFormData({...formData, due_date: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
                 <Input label="Valor (R$) *" type="number" value={formData.value} onChange={v => setFormData({...formData, value: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />
                 <Input label="Descrição" value={formData.description} onChange={v => setFormData({...formData, description: v})} readOnly={!!formData.infleet_id} hint={formData.infleet_id && 'via Infleet'} />

@@ -227,6 +227,12 @@ function DueAlerts({ insurances, expenses, vehicles }) {
 
   expenses.forEach(e => {
     if (!e.due_date) return;
+    // Se data efetiva está preenchida e não é futura, considera despesa concluída → não alerta
+    if (e.date) {
+      const dateStr = String(e.date).slice(0, 10);
+      const todayStr = today.toISOString().slice(0, 10);
+      if (dateStr <= todayStr) return;
+    }
     const days = daysBetween(e.due_date);
     const isIpva = (e.type || '').trim().toLowerCase() === 'ipva';
     if (isIpva) {
