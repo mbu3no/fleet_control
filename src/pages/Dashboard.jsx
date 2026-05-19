@@ -96,12 +96,15 @@ export function DashboardView({ vehicles, trips, fuelings, maintenances, expense
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <KPICard label="Veículos" value={vehicles.length} icon={Car} gradient="from-violet-500/20 to-violet-600/5" iconColor="text-violet-400" />
-        <KPICard label="Km rodados" value={totalKm.toLocaleString('pt-BR')} icon={Activity} gradient="from-cyan-500/20 to-cyan-600/5" iconColor="text-cyan-400" />
-        <KPICard label="Consumo médio" value={consumption > 0 ? `${consumption.toFixed(1)} km/L` : '—'} icon={TrendingUp} gradient="from-teal-500/20 to-teal-600/5" iconColor="text-teal-400" />
-        <KPICard label="Custo/km" value={`R$ ${cpk.toFixed(2)}`} icon={DollarSign} gradient="from-emerald-500/20 to-emerald-600/5" iconColor="text-emerald-400" />
-        <KPICard label="Total" value={`R$ ${totalCost.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`} icon={Wallet} gradient="from-rose-500/20 to-rose-600/5" iconColor="text-rose-400" />
+      <HeroKPI
+        totalCost={totalCost}
+        cpk={cpk}
+        totalKm={totalKm}
+        consumption={consumption}
+        vehiclesCount={vehicles.length}
+      />
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard label="Combustível" value={`R$ ${totalFuel.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`} icon={Fuel} gradient="from-amber-500/20 to-amber-600/5" iconColor="text-amber-400" />
         <KPICard label="Manutenção" value={`R$ ${totalMaint.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`} icon={Wrench} gradient="from-fuchsia-500/20 to-fuchsia-600/5" iconColor="text-fuchsia-400" />
         <KPICard label="Seguros" value={`R$ ${totalIns.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`} icon={Shield} gradient="from-sky-500/20 to-sky-600/5" iconColor="text-sky-400" />
@@ -167,6 +170,39 @@ export function DashboardView({ vehicles, trips, fuelings, maintenances, expense
           <RecentActivity fuelings={fuelings} maintenances={maintenances} expenses={expenses} vehicles={vehicles} />
         </>
       )}
+    </div>
+  );
+}
+
+function HeroKPI({ totalCost, cpk, totalKm, consumption, vehiclesCount }) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 p-6 lg:p-8">
+      <div className="absolute inset-0 bg-gradient-to-br from-rose-500/10 via-violet-500/5 to-transparent opacity-70 pointer-events-none"></div>
+      <div className="absolute -top-12 -right-12 w-48 h-48 bg-rose-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="relative">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">Custo total no período</span>
+          <Wallet size={18} className="text-rose-400" strokeWidth={2} />
+        </div>
+        <div className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white tracking-tight tabular-nums leading-none">
+          R$ {totalCost.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+        </div>
+        <div className="mt-6 pt-5 border-t border-slate-800/60 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <SubMetric label="Custo / km" value={totalKm > 0 ? `R$ ${cpk.toFixed(2)}` : '—'} accent="text-emerald-300" />
+          <SubMetric label="Km rodados" value={totalKm.toLocaleString('pt-BR')} />
+          <SubMetric label="Consumo médio" value={consumption > 0 ? `${consumption.toFixed(1)} km/L` : '—'} />
+          <SubMetric label="Veículos" value={vehiclesCount} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SubMetric({ label, value, accent }) {
+  return (
+    <div>
+      <div className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">{label}</div>
+      <div className={`text-xl lg:text-2xl font-bold tabular-nums mt-1 tracking-tight ${accent || 'text-white'}`}>{value}</div>
     </div>
   );
 }
