@@ -5,10 +5,10 @@ import {
   Database, RefreshCw, Wifi, WifiOff, Sun, Moon, Calculator, X,
 } from 'lucide-react';
 import { supabase, fetchTable, insertRow, updateRow, deleteRow } from './lib/supabase.js';
-import { formatLocalDate } from './lib/format.js';
+import { formatLocalDate, matchesSearch } from './lib/format.js';
 import {
   Toast, PageHeader, SectionPage, TabBtn, DataTable, EmptyState,
-  Input, Select, SaveButton, InfleetSyncBar,
+  Input, Select, SaveButton, InfleetSyncBar, SearchInput,
 } from './components/ui.jsx';
 import { DashboardView } from './pages/Dashboard.jsx';
 import { DepreciationView } from './pages/Depreciation.jsx';
@@ -48,6 +48,8 @@ export default function App() {
   const [insurances, setInsurances] = useState([]);
   const [reservations, setReservations] = useState([]);
   const [syncingInfleet, setSyncingInfleet] = useState(false);
+  const [tableSearch, setTableSearch] = useState({});
+  const updateSearch = (key, val) => setTableSearch(s => ({ ...s, [key]: val }));
 
   const showToast = (type, title, message, duration) => setToast({ type, title, message, duration });
 
@@ -479,29 +481,47 @@ export default function App() {
 
             {activeTab === 'reservations' && <ReservationsView vehicles={vehicles} reservations={reservations} openModal={openModal} removeItem={(id) => removeItem('reservations', id, 'Reserva')} updateStatus={updateReservationStatus} getVehicleName={getVehicleName} />}
 
-            {activeTab === 'fuelings' && (
-              <SectionPage title="Abastecimentos" count={fuelings.length} canAdd={vehicles.length > 0} onAdd={() => openModal('fueling')} empty={fuelings.length === 0} emptyIcon={Fuel} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem abastecimentos"}>
-                <DataTable columns={['Data', 'Veículo', 'Litros', 'Valor', 'Km']}
-                  rows={fuelings.map(f => ({ id: f.id, cells: [
-                    formatLocalDate(f.date),
-                    <span className="text-white">{getVehicleName(f.vehicle_id)}</span>,
-                    `${f.liters} L`, `R$ ${Number(f.value).toFixed(2)}`, f.km ? Number(f.km).toLocaleString('pt-BR') : '—'
-                  ], onEdit: () => openModal('fueling', f),
-                     onRemove: () => removeItem('fuelings', f.id, 'Abastecimento') }))} />
-              </SectionPage>
-            )}
+            {activeTab === 'fuelings' && (() => {
+              const q = tableSearch.fuelings || '';
+              const filtered = fuelings.filter(f => matchesSearch(f, q, [
+                x => getVehicleName(x.vehicle_id),
+                x => x.date,
+                x => x.km,
+              ]));
+              return (
+                <SectionPage title="Abastecimentos" count={fuelings.length} canAdd={vehicles.length > 0} onAdd={() => openModal('fueling')} empty={fuelings.length === 0} emptyIcon={Fuel} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem abastecimentos"}>
+                  <SearchInput value={q} onChange={v => updateSearch('fuelings', v)} placeholder="Buscar por veículo, data..." />
+                  <DataTable columns={['Data', 'Veículo', 'Litros', 'Valor', 'Km']}
+                    rows={filtered.map(f => ({ id: f.id, cells: [
+                      formatLocalDate(f.date),
+                      <span>{getVehicleName(f.vehicle_id)}</span>,
+                      `${f.liters} L`, `R$ ${Number(f.value).toFixed(2)}`, f.km ? Number(f.km).toLocaleString('pt-BR') : '—'
+                    ], onEdit: () => openModal('fueling', f),
+                       onRemove: () => removeItem('fuelings', f.id, 'Abastecimento') }))} />
+                </SectionPage>
+              );
+            })()}
 
-            {activeTab === 'maintenances' && (
-              <SectionPage title="Manutenções" count={maintenances.length} canAdd={vehicles.length > 0} onAdd={() => openModal('maintenance')} empty={maintenances.length === 0} emptyIcon={Wrench} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem manutenções"}>
-                <DataTable columns={['Data', 'Veículo', 'Tipo', 'Custo', 'Próxima (km)']}
-                  rows={maintenances.map(m => ({ id: m.id, cells: [
-                    formatLocalDate(m.date),
-                    <span className="text-white">{getVehicleName(m.vehicle_id)}</span>,
-                    m.type, `R$ ${Number(m.cost).toFixed(2)}`, m.next_km > 0 ? Number(m.next_km).toLocaleString('pt-BR') : '—'
-                  ], onEdit: () => openModal('maintenance', m),
-                     onRemove: () => removeItem('maintenances', m.id, 'Manutenção') }))} />
-              </SectionPage>
-            )}
+            {activeTab === 'maintenances' && (() => {
+              const q = tableSearch.maintenances || '';
+              const filtered = maintenances.filter(m => matchesSearch(m, q, [
+                x => getVehicleName(x.vehicle_id),
+                x => x.type,
+                x => x.date,
+              ]));
+              return (
+                <SectionPage title="Manutenções" count={maintenances.length} canAdd={vehicles.length > 0} onAdd={() => openModal('maintenance')} empty={maintenances.length === 0} emptyIcon={Wrench} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem manutenções"}>
+                  <SearchInput value={q} onChange={v => updateSearch('maintenances', v)} placeholder="Buscar por veículo, tipo, data..." />
+                  <DataTable columns={['Data', 'Veículo', 'Tipo', 'Custo', 'Próxima (km)']}
+                    rows={filtered.map(m => ({ id: m.id, cells: [
+                      formatLocalDate(m.date),
+                      <span>{getVehicleName(m.vehicle_id)}</span>,
+                      m.type, `R$ ${Number(m.cost).toFixed(2)}`, m.next_km > 0 ? Number(m.next_km).toLocaleString('pt-BR') : '—'
+                    ], onEdit: () => openModal('maintenance', m),
+                       onRemove: () => removeItem('maintenances', m.id, 'Manutenção') }))} />
+                </SectionPage>
+              );
+            })()}
 
             {activeTab === 'expenses' && <ExpensesView vehicles={vehicles} expenses={expenses} insurances={insurances} openModal={openModal} removeItem={removeItem} getVehicleName={getVehicleName} onSyncInfleet={syncInfleet} syncingInfleet={syncingInfleet} />}
 
@@ -553,7 +573,16 @@ export default function App() {
               </div>
             )}
 
-            {activeTab === 'trips' && (
+            {activeTab === 'trips' && (() => {
+              const q = tableSearch.trips || '';
+              const filtered = trips.filter(t => matchesSearch(t, q, [
+                x => getDriverName(x.driver_id),
+                x => getVehicleName(x.vehicle_id),
+                x => x.date,
+                x => x.origin,
+                x => x.destination,
+              ]));
+              return (
               <div>
                 <PageHeader title="Viagens" count={trips.length} onAdd={vehicles.length > 0 && drivers.length > 0 ? () => openModal('trip') : null} />
                 <InfleetSyncBar
@@ -564,8 +593,10 @@ export default function App() {
                   syncing={syncingInfleet}
                 />
                 {trips.length === 0 ? <EmptyState icon={MapPin} text={vehicles.length === 0 || drivers.length === 0 ? "Cadastre veículos e motoristas primeiro" : "Sem viagens — adicione manualmente ou sincronize da Infleet."} /> : (
+                <>
+                <SearchInput value={q} onChange={v => updateSearch('trips', v)} placeholder="Buscar por motorista, veículo, rota, data..." />
                 <DataTable columns={['Data', 'Motorista', 'Veículo', 'Rota', 'Km']}
-                  rows={trips.map(t => ({ id: t.id, cells: [
+                  rows={filtered.map(t => ({ id: t.id, cells: [
                     <span className="flex items-center gap-2">
                       <span className="tabular-nums">{formatLocalDate(t.date)}</span>
                       {t.infleet_trip_key && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
@@ -578,9 +609,11 @@ export default function App() {
                     <span className="tabular-nums">{Number(t.km || 0).toFixed(1).replace('.', ',')} km</span>
                   ], onEdit: () => openModal('trip', t),
                      onRemove: () => removeItem('trips', t.id, 'Viagem') }))} />
+                </>
                 )}
               </div>
-            )}
+              );
+            })()}
 
             {activeTab === 'allocation' && (
               <AllocationView

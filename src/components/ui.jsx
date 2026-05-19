@@ -1,9 +1,29 @@
 import React, { useEffect } from 'react';
 import {
   CheckCircle2, AlertCircle, Activity, X, Plus, Pencil, Trash2,
-  Database, Loader2, RefreshCw,
+  Database, Loader2, RefreshCw, Search,
 } from 'lucide-react';
 import { fmtRelativeTime } from '../lib/format.js';
+
+export function SearchInput({ value, onChange, placeholder = "Buscar..." }) {
+  return (
+    <div className="relative w-full sm:max-w-sm mb-4">
+      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+      <input
+        type="text"
+        value={value || ''}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full pl-9 pr-9 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-shadow"
+      />
+      {value && (
+        <button onClick={() => onChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-500 hover:text-white transition-colors">
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function Toast({ toast, onClose }) {
   useEffect(() => {

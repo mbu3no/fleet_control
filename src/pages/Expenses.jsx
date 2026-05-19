@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 import { Pencil, Trash2, Shield, Receipt } from 'lucide-react';
-import { PageHeader, TabBtn, DataTable, SectionPage, EmptyState, InfleetSyncBar } from '../components/ui.jsx';
-import { formatLocalDate } from '../lib/format.js';
+import { PageHeader, TabBtn, DataTable, SectionPage, EmptyState, InfleetSyncBar, SearchInput } from '../components/ui.jsx';
+import { formatLocalDate, matchesSearch } from '../lib/format.js';
 
 export function ExpensesView({ vehicles, expenses, insurances, openModal, removeItem, getVehicleName, onSyncInfleet, syncingInfleet }) {
   const [section, setSection] = useState('insurances');
+  const [expenseSearch, setExpenseSearch] = useState('');
+  const filteredExpenses = expenses.filter(e => matchesSearch(e, expenseSearch, [
+    x => getVehicleName(x.vehicle_id),
+    x => x.type,
+    x => x.description,
+    x => x.date,
+  ]));
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const status = (i) => {
     const d = Math.ceil((new Date(i.end_date) - today) / 86400000);
@@ -72,8 +79,10 @@ export function ExpensesView({ vehicles, expenses, insurances, openModal, remove
             />
           )}
           {expenses.length === 0 ? <EmptyState icon={Receipt} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem despesas — cadastre manual ou sincronize da Infleet."} /> : (
+            <>
+            <SearchInput value={expenseSearch} onChange={setExpenseSearch} placeholder="Buscar por veículo, tipo, descrição, data..." />
             <DataTable columns={['Data', 'Veículo', 'Tipo', 'Descrição', 'Valor']}
-              rows={expenses.map(e => ({ id: e.id, cells: [
+              rows={filteredExpenses.map(e => ({ id: e.id, cells: [
                 <span className="flex items-center gap-2">
                   <span className="tabular-nums">{formatLocalDate(e.date)}</span>
                   {e.infleet_id && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
@@ -84,6 +93,7 @@ export function ExpensesView({ vehicles, expenses, insurances, openModal, remove
                 <span className="font-semibold tabular-nums">R$ {Number(e.value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
               ], onEdit: () => openModal('expense', e),
                  onRemove: () => removeItem('expenses', e.id, 'Despesa') }))} />
+            </>
           )}
         </div>
       )}
