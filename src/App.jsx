@@ -8,7 +8,7 @@ import { supabase, fetchTable, insertRow, updateRow, deleteRow } from './lib/sup
 import { formatLocalDate, matchesSearch } from './lib/format.js';
 import {
   Toast, PageHeader, SectionPage, TabBtn, DataTable, EmptyState,
-  Input, Select, SaveButton, InfleetSyncBar, SearchInput,
+  Input, Select, SaveButton, InfleetSyncBar, SearchInput, ConfirmDialog,
 } from './components/ui.jsx';
 import { DashboardView } from './pages/Dashboard.jsx';
 import { DepreciationView } from './pages/Depreciation.jsx';
@@ -50,6 +50,7 @@ export default function App() {
   const [syncingInfleet, setSyncingInfleet] = useState(false);
   const [tableSearch, setTableSearch] = useState({});
   const updateSearch = (key, val) => setTableSearch(s => ({ ...s, [key]: val }));
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
   const showToast = (type, title, message, duration) => setToast({ type, title, message, duration });
 
@@ -138,15 +139,22 @@ export default function App() {
     }
   };
 
-  const removeItem = async (table, id, label) => {
-    if (!confirm(`Confirma a exclusão deste ${label.toLowerCase()}?`)) return;
-    try {
-      await deleteRow(table, id);
-      showToast('success', `${label} excluído!`, '');
-      await loadAll();
-    } catch (e) {
-      showToast('error', 'Erro ao excluir', e.message, 0);
-    }
+  const removeItem = (table, id, label) => {
+    setConfirmDialog({
+      title: `Excluir ${label.toLowerCase()}`,
+      message: `Esta ação não pode ser desfeita. Tem certeza?`,
+      confirmLabel: 'Excluir',
+      confirmTone: 'rose',
+      onConfirm: async () => {
+        try {
+          await deleteRow(table, id);
+          showToast('success', `${label} excluído!`, '');
+          await loadAll();
+        } catch (e) {
+          showToast('error', 'Erro ao excluir', e.message, 0);
+        }
+      }
+    });
   };
 
   const saveCompany = () => {
@@ -842,6 +850,7 @@ export default function App() {
       )}
 
       <Toast toast={toast} onClose={() => setToast(null)} />
+      <ConfirmDialog dialog={confirmDialog} onClose={() => setConfirmDialog(null)} />
     </div>
   );
 }
