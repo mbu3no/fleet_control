@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Car, Fuel, Wrench, Activity, Wallet, DollarSign, Shield, Receipt, TrendingUp,
   Database, CheckCircle2, CalendarCheck,
@@ -9,23 +9,61 @@ import {
 } from 'recharts';
 import { KPICard } from '../components/ui.jsx';
 import { formatLocalDate } from '../lib/format.js';
+import { computePeriod } from '../lib/allocation.js';
+
+const PRESETS = [
+  { id: 'this_month', label: 'Este mês' },
+  { id: 'last_month', label: 'Mês anterior' },
+  { id: 'last_30', label: '30 dias' },
+  { id: 'this_year', label: 'Este ano' },
+  { id: 'last_year', label: 'Ano anterior' },
+  { id: 'all', label: 'Tudo' },
+  { id: 'custom', label: 'Personalizado' },
+];
 
 export function DashboardView({ vehicles, trips, fuelings, maintenances, expenses, insurances, reservations, pieColors }) {
-  const totalKm = trips.reduce((s, t) => s + (Number(t.km) || 0), 0);
-  const totalLiters = fuelings.reduce((s, f) => s + (Number(f.liters) || 0), 0);
-  const totalFuel = fuelings.reduce((s, f) => s + (Number(f.value) || 0), 0);
-  const totalMaint = maintenances.reduce((s, m) => s + (Number(m.cost) || 0), 0);
-  const totalExp = expenses.reduce((s, e) => s + (Number(e.value) || 0), 0);
-  const totalIns = insurances.reduce((s, i) => s + (Number(i.premium) || 0), 0);
+  const [preset, setPreset] = useState('this_month');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [from, to] = computePeriod(preset, customFrom, customTo);
+  const inPeriod = (d) => {
+    if (!d) return false;
+    const s = String(d).slice(0, 10);
+    return s >= from && s <= to;
+  };
+
+  const periodTrips = trips.filter(t => inPeriod(t.date));
+  const periodFuelings = fuelings.filter(f => inPeriod(f.date));
+  const periodMaint = maintenances.filter(m => inPeriod(m.date));
+  const periodExp = expenses.filter(e => inPeriod(e.date));
+
+  // Seguros pro-rateados pelo overlap com o período
+  const fromMs = new Date(from + 'T00:00:00').getTime();
+  const toMs = new Date(to + 'T23:59:59').getTime();
+  const totalIns = insurances.reduce((s, i) => {
+    if (!i.start_date || !i.end_date) return s;
+    const sMs = new Date(i.start_date + 'T00:00:00').getTime();
+    const eMs = new Date(i.end_date + 'T23:59:59').getTime();
+    if (eMs < fromMs || sMs > toMs) return s;
+    const overlap = Math.max(0, Math.min(toMs, eMs) - Math.max(fromMs, sMs));
+    const total = Math.max(1, eMs - sMs);
+    return s + (Number(i.premium) || 0) * (overlap / total);
+  }, 0);
+
+  const totalKm = periodTrips.reduce((s, t) => s + (Number(t.km) || 0), 0);
+  const totalLiters = periodFuelings.reduce((s, f) => s + (Number(f.liters) || 0), 0);
+  const totalFuel = periodFuelings.reduce((s, f) => s + (Number(f.value) || 0), 0);
+  const totalMaint = periodMaint.reduce((s, m) => s + (Number(m.cost) || 0), 0);
+  const totalExp = periodExp.reduce((s, e) => s + (Number(e.value) || 0), 0);
   const totalCost = totalFuel + totalMaint + totalExp + totalIns;
   const cpk = totalKm > 0 ? totalCost / totalKm : 0;
   const consumption = totalLiters > 0 ? totalKm / totalLiters : 0;
 
   const costByVehicle = vehicles.map(v => {
-    const vF = fuelings.filter(f => f.vehicle_id == v.id).reduce((s, f) => s + Number(f.value || 0), 0);
-    const vM = maintenances.filter(m => m.vehicle_id == v.id).reduce((s, m) => s + Number(m.cost || 0), 0);
+    const vF = periodFuelings.filter(f => f.vehicle_id == v.id).reduce((s, f) => s + Number(f.value || 0), 0);
+    const vM = periodMaint.filter(m => m.vehicle_id == v.id).reduce((s, m) => s + Number(m.cost || 0), 0);
     const total = vF + vM;
-    const vK = trips.filter(t => t.vehicle_id == v.id).reduce((s, t) => s + Number(t.km || 0), 0);
+    const vK = periodTrips.filter(t => t.vehicle_id == v.id).reduce((s, t) => s + Number(t.km || 0), 0);
     return { plate: v.plate, total, km: vK };
   }).filter(v => v.total > 0 || v.km > 0).sort((a, b) => b.total - a.total);
 
@@ -33,7 +71,29 @@ export function DashboardView({ vehicles, trips, fuelings, maintenances, expense
     <div className="space-y-8">
       <div>
         <h2 className="text-2xl lg:text-3xl font-semibold tracking-tight mb-1">Bem-vindo de volta</h2>
-        <p className="text-sm text-slate-400">Visão geral da frota</p>
+        <p className="text-sm text-slate-400">Visão geral da frota · {from} → {to}</p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+        <div className="flex gap-1 flex-wrap">
+          {PRESETS.map(p => (
+            <button key={p.id} onClick={() => setPreset(p.id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${preset === p.id ? 'bg-violet-500/15 border border-violet-500/30 text-white' : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'}`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {preset === 'custom' && (
+          <div className="flex gap-3 items-end mt-3">
+            <div className="flex-1">
+              <label className="block text-[11px] text-slate-500 mb-1">De</label>
+              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500" />
+            </div>
+            <div className="flex-1">
+              <label className="block text-[11px] text-slate-500 mb-1">Até</label>
+              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500" />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
