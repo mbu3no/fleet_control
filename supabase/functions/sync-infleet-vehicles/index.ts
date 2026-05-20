@@ -290,12 +290,11 @@ async function fetchInfleetTripsForVehicle(token: string, infleetVehicleId: stri
 }
 
 async function syncTrips(supabase: SupabaseClient, token: string, now: string): Promise<SyncResult> {
-  // Janela de sincronização: últimos 30 dias
-  const toDate = new Date();
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - 30);
-  const from = fromDate.toISOString();
-  const to = toDate.toISOString();
+  // Janela: últimos 28 dias buscados em chunks de 7 dias.
+  // A query trips da Infleet dá timeout/HTTP 500 em janelas grandes
+  // (ela calcula viagens a partir do GPS em tempo real).
+  const CHUNK_DAYS = 7;
+  const TOTAL_DAYS = 28;
 
   // 1. Pega veículos sincronizados com infleet_id e mapeia infleet_id -> local id
   const { data: vehicles, error: vErr } = await supabase
@@ -330,17 +329,23 @@ async function syncTrips(supabase: SupabaseClient, token: string, now: string): 
   let updated = 0;
   const errors: SyncResult["errors"] = [];
 
-  // 4. Pra cada veículo, busca viagens no período
+  // 4. Pra cada veículo, busca viagens em chunks de 7 dias
   for (const [infleetVehicleId, localVehicleId] of vehicleByInfleet.entries()) {
-    let infleetTrips: InfleetTrip[];
-    try {
-      infleetTrips = await fetchInfleetTripsForVehicle(token, infleetVehicleId, from, to);
-    } catch (e) {
-      errors.push({ key: infleetVehicleId, action: "fetch", error: String((e as Error)?.message || e) });
-      continue;
-    }
+    for (let offset = 0; offset < TOTAL_DAYS; offset += CHUNK_DAYS) {
+      const chunkTo = new Date();
+      chunkTo.setDate(chunkTo.getDate() - offset);
+      const chunkFrom = new Date();
+      chunkFrom.setDate(chunkFrom.getDate() - Math.min(offset + CHUNK_DAYS, TOTAL_DAYS));
 
-    for (const trip of infleetTrips) {
+      let infleetTrips: InfleetTrip[];
+      try {
+        infleetTrips = await fetchInfleetTripsForVehicle(token, infleetVehicleId, chunkFrom.toISOString(), chunkTo.toISOString());
+      } catch (e) {
+        errors.push({ key: infleetVehicleId, action: "fetch", error: String((e as Error)?.message || e) });
+        continue;
+      }
+
+      for (const trip of infleetTrips) {
       if (!trip.startedAt || !trip.vehicle || !trip.driver) continue;
       const key = `${trip.vehicle.id}__${trip.startedAt}`;
       if (existingKeys.has(key)) continue; // já temos
@@ -370,6 +375,7 @@ async function syncTrips(supabase: SupabaseClient, token: string, now: string): 
       } else {
         inserted++;
         existingKeys.add(key);
+      }
       }
     }
   }
