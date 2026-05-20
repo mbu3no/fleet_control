@@ -48,6 +48,7 @@ export default function App() {
   const [insurances, setInsurances] = useState([]);
   const [reservations, setReservations] = useState([]);
   const [syncingInfleet, setSyncingInfleet] = useState(false);
+  const [syncingWebposto, setSyncingWebposto] = useState(false);
   const [tableSearch, setTableSearch] = useState({});
   const updateSearch = (key, val) => setTableSearch(s => ({ ...s, [key]: val }));
   const [confirmDialog, setConfirmDialog] = useState(null);
@@ -76,6 +77,29 @@ export default function App() {
       showToast('error', 'Erro na sincronização', e.message || String(e));
     } finally {
       setSyncingInfleet(false);
+    }
+  };
+
+  const syncWebposto = async () => {
+    setSyncingWebposto(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-webposto-fuelings', { body: {} });
+      if (error) throw new Error(error.message || String(error));
+      if (!data?.ok) throw new Error(data?.error || 'Falha na sincronização');
+      const { inserted = 0, updated = 0, errors = [], caughtUp, vendasScanned = 0 } = data;
+      const base = `+${inserted} novos · ${updated} atualizados`;
+      if (errors.length > 0) {
+        showToast('error', 'Sincronização com avisos', `${base} · ${errors.length} erros`);
+      } else if (!caughtUp) {
+        showToast('info', 'Backfill em andamento', `${base} · ${vendasScanned} vendas varridas · clique novamente pra continuar`);
+      } else {
+        showToast('success', 'Webposto sincronizado', `${base} · histórico completo`);
+      }
+      await loadAll();
+    } catch (e) {
+      showToast('error', 'Erro na sincronização Webposto', e.message || String(e));
+    } finally {
+      setSyncingWebposto(false);
     }
   };
 
@@ -207,6 +231,10 @@ export default function App() {
 
   const saveFueling = () => {
     if (!formData.vehicle_id || !formData.liters || !formData.value) { showToast('error', 'Erro', 'Veículo, litros e valor são obrigatórios'); return; }
+    if (formData.webposto_id) {
+      showToast('info', 'Abastecimento do Webposto', 'Gerenciado pela integração — edição local desabilitada.');
+      return;
+    }
     saveGeneric('fuelings', {
       vehicle_id: Number(formData.vehicle_id),
       date: formData.date || new Date().toISOString().split('T')[0],
@@ -497,16 +525,33 @@ export default function App() {
                 x => x.km,
               ]));
               return (
-                <SectionPage title="Abastecimentos" count={fuelings.length} canAdd={vehicles.length > 0} onAdd={() => openModal('fueling')} empty={fuelings.length === 0} emptyIcon={Fuel} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem abastecimentos"}>
-                  <SearchInput value={q} onChange={v => updateSearch('fuelings', v)} placeholder="Buscar por veículo, data..." />
-                  <DataTable columns={['Data', 'Veículo', 'Litros', 'Valor', 'Km']}
-                    rows={filtered.map(f => ({ id: f.id, cells: [
-                      formatLocalDate(f.date),
-                      <span>{getVehicleName(f.vehicle_id)}</span>,
-                      `${f.liters} L`, `R$ ${Number(f.value).toFixed(2)}`, f.km ? Number(f.km).toLocaleString('pt-BR') : '—'
-                    ], onEdit: () => openModal('fueling', f),
-                       onRemove: () => removeItem('fuelings', f.id, 'Abastecimento') }))} />
-                </SectionPage>
+                <div>
+                  <PageHeader title="Abastecimentos" count={fuelings.length} onAdd={vehicles.length > 0 ? () => openModal('fueling') : null} />
+                  <InfleetSyncBar
+                    title="Sincronização Webposto"
+                    accent="amber"
+                    syncedCount={fuelings.filter(f => f.webposto_id).length}
+                    totalCount={fuelings.length}
+                    lastSync={fuelings.reduce((a, f) => (f.last_synced_at && (!a || f.last_synced_at > a)) ? f.last_synced_at : a, null)}
+                    onSync={syncWebposto}
+                    syncing={syncingWebposto}
+                  />
+                  {fuelings.length === 0 ? <EmptyState icon={Fuel} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem abastecimentos — cadastre manual ou sincronize do Webposto."} /> : (
+                    <>
+                      <SearchInput value={q} onChange={v => updateSearch('fuelings', v)} placeholder="Buscar por veículo, data..." />
+                      <DataTable columns={['Data', 'Veículo', 'Litros', 'Valor', 'Km']}
+                        rows={filtered.map(f => ({ id: f.id, cells: [
+                          <span className="flex items-center gap-2">
+                            <span className="tabular-nums">{formatLocalDate(f.date)}</span>
+                            {f.webposto_id && <span title="Sincronizado do Webposto" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium tracking-wide">WEBPOSTO</span>}
+                          </span>,
+                          <span>{getVehicleName(f.vehicle_id)}</span>,
+                          `${f.liters} L`, `R$ ${Number(f.value).toFixed(2)}`, f.km ? Number(f.km).toLocaleString('pt-BR') : '—'
+                        ], onEdit: () => openModal('fueling', f),
+                           onRemove: () => removeItem('fuelings', f.id, 'Abastecimento') }))} />
+                    </>
+                  )}
+                </div>
               );
             })()}
 
@@ -763,12 +808,20 @@ export default function App() {
 
             {showModal === 'fueling' && (
               <div className="space-y-4">
+                {formData.webposto_id && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-200">
+                    <Database size={14} className="text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      Abastecimento sincronizado do <strong>Webposto</strong>. Todos os campos são gerenciados lá. Edição local desabilitada.
+                    </div>
+                  </div>
+                )}
                 <Select label="Veículo *" value={formData.vehicle_id} onChange={v => setFormData({...formData, vehicle_id: v})} options={vehicles.map(v => ({value: v.id, label: `${v.plate} · ${v.model}`}))} />
-                <Input label="Data" type="date" value={formData.date} onChange={v => setFormData({...formData, date: v})} />
-                <Input label="Litros *" type="number" value={formData.liters} onChange={v => setFormData({...formData, liters: v})} />
-                <Input label="Valor (R$) *" type="number" value={formData.value} onChange={v => setFormData({...formData, value: v})} />
-                <Input label="Km" type="number" value={formData.km} onChange={v => setFormData({...formData, km: v})} />
-                <SaveButton onClick={saveFueling} busy={savingItem} />
+                <Input label="Data" type="date" value={formData.date} onChange={v => setFormData({...formData, date: v})} readOnly={!!formData.webposto_id} hint={formData.webposto_id && 'via Webposto'} />
+                <Input label="Litros *" type="number" value={formData.liters} onChange={v => setFormData({...formData, liters: v})} readOnly={!!formData.webposto_id} hint={formData.webposto_id && 'via Webposto'} />
+                <Input label="Valor (R$) *" type="number" value={formData.value} onChange={v => setFormData({...formData, value: v})} readOnly={!!formData.webposto_id} hint={formData.webposto_id && 'via Webposto'} />
+                <Input label="Km" type="number" value={formData.km} onChange={v => setFormData({...formData, km: v})} readOnly={!!formData.webposto_id} hint={formData.webposto_id && 'via Webposto'} />
+                {!formData.webposto_id && <SaveButton onClick={saveFueling} busy={savingItem} />}
               </div>
             )}
 

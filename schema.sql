@@ -104,6 +104,8 @@ CREATE TABLE fuelings (
   liters NUMERIC(10, 2) NOT NULL,
   value NUMERIC(12, 2) NOT NULL,
   km NUMERIC(12, 2),
+  webposto_id TEXT,
+  last_synced_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

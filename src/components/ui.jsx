@@ -172,15 +172,18 @@ export function EmptyState({ icon: Icon, text }) {
   );
 }
 
-export function InfleetSyncBar({ syncedCount, totalCount, lastSync, onSync, syncing }) {
+export function InfleetSyncBar({ syncedCount, totalCount, lastSync, onSync, syncing, title = "Sincronização Infleet", accent = "sky" }) {
+  const tone = accent === "amber"
+    ? { wrap: 'bg-amber-500/5 border-amber-500/20', icon: 'bg-amber-500/10 text-amber-400', btn: 'bg-amber-500/10 border-amber-500/30 text-amber-200 hover:bg-amber-500/20' }
+    : { wrap: 'bg-sky-500/5 border-sky-500/20', icon: 'bg-sky-500/10 text-sky-400', btn: 'bg-sky-500/10 border-sky-500/30 text-sky-200 hover:bg-sky-500/20' };
   return (
-    <div className="flex items-center justify-between gap-4 flex-wrap mb-6 p-4 rounded-xl bg-sky-500/5 border border-sky-500/20">
+    <div className={`flex items-center justify-between gap-4 flex-wrap mb-6 p-4 rounded-xl border ${tone.wrap}`}>
       <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center shrink-0">
-          <Database size={18} className="text-sky-400" />
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tone.icon}`}>
+          <Database size={18} />
         </div>
         <div className="min-w-0">
-          <div className="text-sm text-white font-medium">Sincronização Infleet</div>
+          <div className="text-sm text-white font-medium">{title}</div>
           <div className="text-xs text-slate-400">
             {syncedCount} de {totalCount} sincronizados
             {lastSync && <> · última sync {fmtRelativeTime(lastSync)}</>}
@@ -188,7 +191,7 @@ export function InfleetSyncBar({ syncedCount, totalCount, lastSync, onSync, sync
           </div>
         </div>
       </div>
-      <button onClick={onSync} disabled={syncing} className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-200 text-xs font-medium hover:bg-sky-500/20 disabled:opacity-50">
+      <button onClick={onSync} disabled={syncing} className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-medium disabled:opacity-50 transition-colors ${tone.btn}`}>
         {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
         {syncing ? 'Sincronizando...' : 'Sincronizar agora'}
       </button>
