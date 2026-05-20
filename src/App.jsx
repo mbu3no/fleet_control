@@ -91,7 +91,7 @@ export default function App() {
       if (errors.length > 0) {
         showToast('error', 'Sincronização com avisos', `${base} · ${errors.length} erros`);
       } else if (!caughtUp) {
-        showToast('info', 'Backfill em andamento', `${base} · ${vendasScanned} vendas varridas · clique novamente pra continuar`);
+        showToast('info', 'Backfill rodando em segundo plano', `${base} · ${vendasScanned} vendas varridas neste lote. A sincronização continua sozinha — atualize a página em alguns minutos.`, 8000);
       } else {
         showToast('success', 'Webposto sincronizado', `${base} · histórico completo`);
       }

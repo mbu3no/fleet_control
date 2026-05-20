@@ -27,7 +27,7 @@ SELECT cron.schedule(
   SELECT net.http_post(
     url := 'https://cfikehpzbyyqscigfwwl.supabase.co/functions/v1/sync-webposto-fuelings',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer YOUR_SUPABASE_ANON_KEY_HERE',
+      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmaWtlaHB6Ynl5cXNjaWdmd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDM1MzQsImV4cCI6MjA5MjQxOTUzNH0.obO9GsMzxNJfx4rDuf4xrUcNuycfWvXr2yRTJCgPELY',
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb

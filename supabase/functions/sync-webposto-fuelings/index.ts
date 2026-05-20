@@ -7,10 +7,11 @@
 //   SUPABASE_URL               — (injetado automaticamente)
 //   SUPABASE_SERVICE_ROLE_KEY  — (injetado automaticamente)
 //
-// Estratégia: cursor-based. Cada execução pagina até PAGES_PER_RUN páginas
-// de vendas a partir do último cursor salvo em sync_state, filtra as placas
-// dos veículos cadastrados, e cria os abastecimentos. O cursor avança de
-// BACKFILL_START até o presente ao longo de várias execuções (cron 3h).
+// Estratégia: cursor-based com auto-continuação. Cada execução pagina até
+// PAGES_PER_RUN páginas a partir do cursor salvo em sync_state. Se ainda
+// não alcançou o presente, dispara uma nova invocação de si mesma
+// (self-chaining) até o backfill terminar. Um clique = backfill completo.
+// O cursor é salvo a cada página — crash não perde progresso.
 // =====================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -22,6 +23,7 @@ const PAGES_PER_RUN = 15;
 const PAGE_SIZE = 2000;
 const DETAIL_BATCH = 40;
 const CURSOR_KEY = "webposto_cursor";
+const MAX_CHAIN = 30;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,13 +41,32 @@ Deno.serve(async (req: Request) => {
     if (!token) {
       return json({ ok: false, error: "WEBPOSTO_TOKEN secret não configurado" }, 500);
     }
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Profundidade da cadeia de auto-invocação (vem no body quando é self-call)
+    let chain = 0;
+    try {
+      const b = await req.json();
+      chain = Number(b?._chain) || 0;
+    } catch (_) { /* body vazio = clique manual */ }
 
     const result = await syncFuelings(supabase, token);
-    return json({ ok: true, ...result });
+
+    // Auto-continua se ainda não terminou o backfill
+    if (!result.caughtUp && chain < MAX_CHAIN) {
+      const selfUrl = `${supabaseUrl}/functions/v1/sync-webposto-fuelings`;
+      EdgeRuntime.waitUntil(
+        fetch(selfUrl, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ _chain: chain + 1 }),
+        }).catch(() => { /* se a cadeia quebrar, o cron de 3h retoma */ }),
+      );
+    }
+
+    return json({ ok: true, chain, ...result });
   } catch (e) {
     return json({ ok: false, error: (e as Error)?.message || String(e) }, 500);
   }
@@ -67,146 +88,112 @@ function todayIso(): string {
 }
 
 async function webpostoGet(token: string, path: string): Promise<any> {
-  const res = await fetch(`${WEBPOSTO_URL}${path}`, {
-    headers: { "X-API-Key": token },
-  });
+  const res = await fetch(`${WEBPOSTO_URL}${path}`, { headers: { "X-API-Key": token } });
   if (!res.ok) throw new Error(`Webposto HTTP ${res.status}: ${path}`);
   return res.json();
 }
 
-interface VendaMatch {
-  vendaCodigo: number;
-  placaNorm: string;
-  dataHora: string;
-}
-
 async function syncFuelings(supabase: SupabaseClient, token: string) {
-  // 1. Mapa placa normalizada -> vehicle_id local
-  const { data: vehicles, error: vErr } = await supabase
-    .from("vehicles")
-    .select("id, plate");
+  // Mapa placa normalizada -> vehicle_id local
+  const { data: vehicles, error: vErr } = await supabase.from("vehicles").select("id, plate");
   if (vErr) throw vErr;
   const plateToVehicle = new Map<string, number>();
   for (const v of vehicles || []) {
     if (v.plate) plateToVehicle.set(normalizePlate(v.plate), v.id);
   }
 
-  // 2. Cursor atual
+  // Cursor atual
   const { data: stateRow } = await supabase
-    .from("sync_state")
-    .select("value")
-    .eq("key", CURSOR_KEY)
-    .maybeSingle();
+    .from("sync_state").select("value").eq("key", CURSOR_KEY).maybeSingle();
   let cursor: string = stateRow?.value || "";
 
-  // 3. Pagina vendas, coleta as que casam com nossas placas
   const dataFinal = todayIso();
-  const matches: VendaMatch[] = [];
   let pagesScanned = 0;
   let vendasScanned = 0;
+  let inserted = 0;
+  let updated = 0;
   let caughtUp = false;
-  let lastCursor = cursor;
+  const errors: Array<{ key: string; error: string }> = [];
 
   for (let p = 0; p < PAGES_PER_RUN; p++) {
-    const ucParam = lastCursor ? `&ultimoCodigo=${lastCursor}` : "";
-    const path = `/INTEGRACAO/VENDA?dataInicial=${BACKFILL_START}&dataFinal=${dataFinal}&limite=${PAGE_SIZE}${ucParam}`;
-    const body = await webpostoGet(token, path);
+    const ucParam = cursor ? `&ultimoCodigo=${cursor}` : "";
+    const listPath = `/INTEGRACAO/VENDA?dataInicial=${BACKFILL_START}&dataFinal=${dataFinal}&limite=${PAGE_SIZE}${ucParam}`;
+    const body = await webpostoGet(token, listPath);
     const res: any[] = body?.resultados || [];
     pagesScanned++;
     vendasScanned += res.length;
 
+    // Vendas dessa página que casam com nossas placas
+    const matches: Array<{ vendaCodigo: number; placaNorm: string; dataHora: string }> = [];
     for (const v of res) {
-      if (v.cancelada === "S") continue;
-      if (!v.placaVeiculo) continue;
+      if (v.cancelada === "S" || !v.placaVeiculo) continue;
       const pn = normalizePlate(v.placaVeiculo);
       if (plateToVehicle.has(pn)) {
         matches.push({ vendaCodigo: v.vendaCodigo, placaNorm: pn, dataHora: v.dataHora || "" });
       }
     }
 
-    if (body?.ultimoCodigo) lastCursor = String(body.ultimoCodigo);
-    if (res.length < PAGE_SIZE) { caughtUp = true; break; }
-  }
+    // Detalhes em lote + insert/update dos abastecimentos
+    for (let i = 0; i < matches.length; i += DETAIL_BATCH) {
+      const batch = matches.slice(i, i + DETAIL_BATCH);
+      const idList = batch.map((m) => m.vendaCodigo).join(",");
+      let detailRes: any[];
+      try {
+        const detail = await webpostoGet(token, `/INTEGRACAO/VENDA/${idList}`);
+        detailRes = detail?.resultados || [];
+      } catch (e) {
+        errors.push({ key: idList, error: `detalhe: ${(e as Error)?.message || e}` });
+        continue;
+      }
 
-  // 4. Busca detalhes (itens) das vendas que casaram, em lotes
-  let inserted = 0;
-  let updated = 0;
-  const errors: Array<{ key: string; error: string }> = [];
+      for (const venda of detailRes) {
+        const m = batch.find((x) => x.vendaCodigo === venda.vendaCodigo);
+        if (!m) continue;
+        const vehicleId = plateToVehicle.get(m.placaNorm);
+        if (!vehicleId) continue;
+        const date = (venda.dataHora || m.dataHora || "").slice(0, 10) || todayIso();
 
-  for (let i = 0; i < matches.length; i += DETAIL_BATCH) {
-    const batch = matches.slice(i, i + DETAIL_BATCH);
-    const idList = batch.map((m) => m.vendaCodigo).join(",");
-    let detailRes: any[];
-    try {
-      const detail = await webpostoGet(token, `/INTEGRACAO/VENDA/${idList}`);
-      detailRes = detail?.resultados || [];
-    } catch (e) {
-      errors.push({ key: idList, error: `detalhe: ${(e as Error)?.message || e}` });
-      continue;
-    }
+        for (const item of (venda.itens || [])) {
+          if (item.bicoCodigo == null) continue; // só itens de bomba (combustível)
+          const webpostoId = String(item.vendaItemCodigo);
+          const liters = Number(item.quantidade) || 0;
+          const value = Number(item.totalVenda) || 0;
+          if (liters <= 0 && value <= 0) continue;
 
-    for (const venda of detailRes) {
-      const match = batch.find((m) => m.vendaCodigo === venda.vendaCodigo);
-      if (!match) continue;
-      const vehicleId = plateToVehicle.get(match.placaNorm);
-      if (!vehicleId) continue;
+          const payload = {
+            vehicle_id: vehicleId,
+            date,
+            liters: Math.round(liters * 100) / 100,
+            value: Math.round(value * 100) / 100,
+            webposto_id: webpostoId,
+            last_synced_at: new Date().toISOString(),
+          };
 
-      // dataHora vem com offset -03:00 (BRT) — slice direto dá a data local
-      const date = (venda.dataHora || match.dataHora || "").slice(0, 10);
-      const itens: any[] = venda.itens || [];
-
-      for (const item of itens) {
-        // Item de combustível tem bicoCodigo (bico de bomba)
-        if (item.bicoCodigo == null) continue;
-        const webpostoId = String(item.vendaItemCodigo);
-        const liters = Number(item.quantidade) || 0;
-        const value = Number(item.totalVenda) || 0;
-        if (liters <= 0 && value <= 0) continue;
-
-        const payload = {
-          vehicle_id: vehicleId,
-          date: date || todayIso(),
-          liters: Math.round(liters * 100) / 100,
-          value: Math.round(value * 100) / 100,
-          webposto_id: webpostoId,
-          last_synced_at: new Date().toISOString(),
-        };
-
-        // upsert por webposto_id
-        const { data: existing } = await supabase
-          .from("fuelings")
-          .select("id")
-          .eq("webposto_id", webpostoId)
-          .maybeSingle();
-
-        if (existing) {
-          const { error } = await supabase.from("fuelings").update(payload).eq("id", existing.id);
-          if (error) errors.push({ key: webpostoId, error: error.message });
-          else updated++;
-        } else {
-          const { error } = await supabase.from("fuelings").insert([payload]);
-          if (error) errors.push({ key: webpostoId, error: error.message });
-          else inserted++;
+          const { data: existing } = await supabase
+            .from("fuelings").select("id").eq("webposto_id", webpostoId).maybeSingle();
+          if (existing) {
+            const { error } = await supabase.from("fuelings").update(payload).eq("id", existing.id);
+            if (error) errors.push({ key: webpostoId, error: error.message });
+            else updated++;
+          } else {
+            const { error } = await supabase.from("fuelings").insert([payload]);
+            if (error) errors.push({ key: webpostoId, error: error.message });
+            else inserted++;
+          }
         }
       }
     }
+
+    // Salva cursor após cada página — crash não perde progresso
+    if (body?.ultimoCodigo) {
+      cursor = String(body.ultimoCodigo);
+      await supabase.from("sync_state").upsert({
+        key: CURSOR_KEY, value: cursor, updated_at: new Date().toISOString(),
+      });
+    }
+
+    if (res.length < PAGE_SIZE) { caughtUp = true; break; }
   }
 
-  // 5. Salva cursor
-  await supabase.from("sync_state").upsert({
-    key: CURSOR_KEY,
-    value: lastCursor,
-    updated_at: new Date().toISOString(),
-  });
-
-  return {
-    inserted,
-    updated,
-    errors,
-    pagesScanned,
-    vendasScanned,
-    matched: matches.length,
-    caughtUp,
-    cursor: lastCursor,
-  };
+  return { inserted, updated, errors, pagesScanned, vendasScanned, caughtUp, cursor };
 }
