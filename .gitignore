@@ -45,3 +45,6 @@ Thumbs.db
 
 # Configuração local de ferramentas
 .claude/
+
+# Arquivos temporários de scripts/scans
+_*.json
