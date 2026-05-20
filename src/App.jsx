@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Car, Fuel, Wrench, Users, LayoutDashboard, MapPin, Settings, Building2,
   Wallet, Menu, Pencil, Trash2, DollarSign, Receipt, CalendarCheck, Loader2,
-  Database, RefreshCw, Wifi, WifiOff, Sun, Moon, Calculator, X,
+  Database, RefreshCw, Wifi, WifiOff, Sun, Moon, Calculator, Coins, X,
 } from 'lucide-react';
 import { supabase, fetchTable, insertRow, updateRow, deleteRow } from './lib/supabase.js';
 import { formatLocalDate, matchesSearch } from './lib/format.js';
@@ -15,6 +15,7 @@ import { DepreciationView } from './pages/Depreciation.jsx';
 import { ExpensesView } from './pages/Expenses.jsx';
 import { ReservationsView } from './pages/Reservations.jsx';
 import { AllocationView } from './pages/Allocation.jsx';
+import { CostsView } from './pages/Costs.jsx';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -396,6 +397,7 @@ export default function App() {
     { id: 'expenses', label: 'Despesas', icon: Receipt },
     { id: 'drivers', label: 'Motoristas', icon: Users },
     { id: 'trips', label: 'Viagens', icon: MapPin },
+    { id: 'costs', label: 'Custos', icon: Coins },
     { id: 'allocation', label: 'Rateio', icon: Calculator },
   ];
 
@@ -667,6 +669,17 @@ export default function App() {
               </div>
               );
             })()}
+
+            {activeTab === 'costs' && (
+              <CostsView
+                vehicles={vehicles}
+                fuelings={fuelings}
+                maintenances={maintenances}
+                expenses={expenses}
+                insurances={insurances}
+                trips={trips}
+              />
+            )}
 
             {activeTab === 'allocation' && (
               <AllocationView
