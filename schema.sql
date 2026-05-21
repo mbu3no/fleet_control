@@ -183,27 +183,8 @@ CREATE TABLE reservations (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE app_users (
-  id BIGSERIAL PRIMARY KEY,
-  auth_user_id UUID UNIQUE,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL UNIQUE,
-  role TEXT NOT NULL DEFAULT 'Operador',
-  active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE user_invites (
-  id BIGSERIAL PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'Operador',
-  accepted BOOLEAN DEFAULT FALSE,
-  accepted_at TIMESTAMPTZ,
-  expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days'),
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- A tabela 'profiles' (autenticacao e permissoes) e criada por
+-- auth-profiles-setup.sql. A RLS e ligada por auth-rls-enable.sql.
 
 
 -- =====================================================================
@@ -243,8 +224,6 @@ ALTER TABLE trips DISABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses DISABLE ROW LEVEL SECURITY;
 ALTER TABLE insurances DISABLE ROW LEVEL SECURITY;
 ALTER TABLE reservations DISABLE ROW LEVEL SECURITY;
-ALTER TABLE app_users DISABLE ROW LEVEL SECURITY;
-ALTER TABLE user_invites DISABLE ROW LEVEL SECURITY;
 
 
 -- =====================================================================
@@ -285,7 +264,6 @@ CREATE TRIGGER set_updated_at_trips BEFORE UPDATE ON trips FOR EACH ROW EXECUTE 
 CREATE TRIGGER set_updated_at_expenses BEFORE UPDATE ON expenses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER set_updated_at_insurances BEFORE UPDATE ON insurances FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER set_updated_at_reservations BEFORE UPDATE ON reservations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER set_updated_at_app_users BEFORE UPDATE ON app_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 
 -- =====================================================================
