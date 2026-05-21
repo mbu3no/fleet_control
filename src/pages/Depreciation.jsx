@@ -7,8 +7,8 @@ export function DepreciationView({ vehicles, pieColors }) {
   const today = new Date();
   const calc = (v) => {
     if (!v.purchase_value || !v.purchase_date) return { months: 0, dep: 0, current: v.purchase_value || 0, pct: 0 };
-    const p = new Date(v.purchase_date);
-    const months = Math.max(0, (today.getFullYear() - p.getFullYear()) * 12 + (today.getMonth() - p.getMonth()));
+    const [py, pm] = String(v.purchase_date).slice(0, 10).split('-').map(Number);
+    const months = Math.max(0, (today.getFullYear() - py) * 12 + (today.getMonth() + 1 - pm));
     const dep = Number(v.purchase_value) * RATE * months;
     return { months, dep, current: Math.max(0, Number(v.purchase_value) - dep), pct: v.purchase_value > 0 ? (dep / Number(v.purchase_value)) * 100 : 0 };
   };

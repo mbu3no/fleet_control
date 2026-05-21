@@ -33,6 +33,20 @@ export function formatLocalDate(dateStr) {
   return `${d}/${m}/${y}`;
 }
 
+// Dias entre hoje e uma data YYYY-MM-DD (positivo = futuro, negativo = passado).
+// Parseia a data como LOCAL pra não ter skew de timezone — new Date('2026-05-25')
+// é interpretado como UTC e, em BRT, desloca o cálculo em 1 dia.
+export function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const s = String(dateStr).slice(0, 10);
+  const [y, m, d] = s.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const target = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target - today) / 86400000);
+}
+
 export function fmtRelativeTime(iso) {
   if (!iso) return null;
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;

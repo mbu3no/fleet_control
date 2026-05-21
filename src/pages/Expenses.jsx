@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pencil, Trash2, Shield, Receipt } from 'lucide-react';
 import { PageHeader, TabBtn, DataTable, SectionPage, EmptyState, InfleetSyncBar, SearchInput } from '../components/ui.jsx';
-import { formatLocalDate, matchesSearch } from '../lib/format.js';
+import { formatLocalDate, matchesSearch, daysUntil } from '../lib/format.js';
 
 export function ExpensesView({ vehicles, expenses, insurances, openModal, removeItem, getVehicleName, onSyncInfleet, syncingInfleet }) {
   const [section, setSection] = useState('insurances');
@@ -12,9 +12,8 @@ export function ExpensesView({ vehicles, expenses, insurances, openModal, remove
     x => x.description,
     x => x.date,
   ]));
-  const today = new Date(); today.setHours(0, 0, 0, 0);
   const status = (i) => {
-    const d = Math.ceil((new Date(i.end_date) - today) / 86400000);
+    const d = daysUntil(i.end_date) ?? 0;
     if (d < 0) return { d, label: 'Vencido', cls: 'bg-rose-500/10 text-rose-300 border-rose-500/20' };
     if (d <= 30) return { d, label: 'Crítico', cls: 'bg-rose-500/10 text-rose-300 border-rose-500/20' };
     if (d <= 60) return { d, label: 'Atenção', cls: 'bg-amber-500/10 text-amber-300 border-amber-500/20' };
@@ -50,9 +49,9 @@ export function ExpensesView({ vehicles, expenses, insurances, openModal, remove
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-slate-500 mb-4">
-                    <span>{new Date(ins.start_date).toLocaleDateString('pt-BR')}</span>
+                    <span>{formatLocalDate(ins.start_date)}</span>
                     <span>{st.d < 0 ? `Vencido há ${Math.abs(st.d)}d` : `${st.d}d restantes`}</span>
-                    <span>{new Date(ins.end_date).toLocaleDateString('pt-BR')}</span>
+                    <span>{formatLocalDate(ins.end_date)}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-800">
                     <div><div className="text-[10px] text-slate-500 uppercase">Prêmio</div><div className="text-sm font-semibold text-white mt-0.5">R$ {Number(ins.premium || 0).toLocaleString('pt-BR', {maximumFractionDigits: 0})}</div></div>

@@ -8,7 +8,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { KPICard } from '../components/ui.jsx';
-import { formatLocalDate } from '../lib/format.js';
+import { formatLocalDate, daysUntil } from '../lib/format.js';
 import { computePeriod } from '../lib/allocation.js';
 
 const PRESETS = [
@@ -62,7 +62,17 @@ export function DashboardView({ vehicles, trips, fuelings, maintenances, expense
   const costByVehicle = vehicles.map(v => {
     const vF = periodFuelings.filter(f => f.vehicle_id == v.id).reduce((s, f) => s + Number(f.value || 0), 0);
     const vM = periodMaint.filter(m => m.vehicle_id == v.id).reduce((s, m) => s + Number(m.cost || 0), 0);
-    const total = vF + vM;
+    const vE = periodExp.filter(e => e.vehicle_id == v.id).reduce((s, e) => s + Number(e.value || 0), 0);
+    const vI = insurances.reduce((s, i) => {
+      if (i.vehicle_id != v.id || !i.start_date || !i.end_date) return s;
+      const sMs = new Date(i.start_date + 'T00:00:00').getTime();
+      const eMs = new Date(i.end_date + 'T23:59:59').getTime();
+      if (eMs < fromMs || sMs > toMs) return s;
+      const overlap = Math.max(0, Math.min(toMs, eMs) - Math.max(fromMs, sMs));
+      const tot = Math.max(1, eMs - sMs);
+      return s + (Number(i.premium) || 0) * (overlap / tot);
+    }, 0);
+    const total = vF + vM + vE + vI;
     const vK = periodTrips.filter(t => t.vehicle_id == v.id).reduce((s, t) => s + Number(t.km || 0), 0);
     return { plate: v.plate, total, km: vK };
   }).filter(v => v.total > 0 || v.km > 0).sort((a, b) => b.total - a.total);
@@ -298,10 +308,8 @@ function TodayReservations({ reservations, vehicles }) {
 }
 
 function DueAlerts({ insurances, expenses, vehicles }) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   const getVehicle = (id) => vehicles.find(v => v.id == id);
-  const daysBetween = (d) => Math.floor((new Date(d) - today) / (1000 * 60 * 60 * 24));
+  const daysBetween = (d) => daysUntil(d);
 
   const items = [];
 
@@ -326,7 +334,7 @@ function DueAlerts({ insurances, expenses, vehicles }) {
     // Se data efetiva está preenchida e não é futura, considera despesa concluída → não alerta
     if (e.date) {
       const dateStr = String(e.date).slice(0, 10);
-      const todayStr = today.toISOString().slice(0, 10);
+      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
       if (dateStr <= todayStr) return;
     }
     const days = daysBetween(e.due_date);
@@ -385,9 +393,7 @@ function DueAlerts({ insurances, expenses, vehicles }) {
 }
 
 function RevisionAlerts({ vehicles }) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const daysBetween = (d) => Math.floor((new Date(d) - today) / (1000 * 60 * 60 * 24));
+  const daysBetween = (d) => daysUntil(d);
 
   const items = vehicles.map(v => {
     const km = Number(v.current_km) || 0;
