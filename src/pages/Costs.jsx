@@ -26,7 +26,7 @@ const SORT_OPTIONS = [
 const money = (n) => `R$ ${Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
 
 export function CostsView({ vehicles, fuelings, maintenances, expenses, insurances, trips }) {
-  const [preset, setPreset] = useState('this_month');
+  const [preset, setPreset] = useState('this_year');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [sortBy, setSortBy] = useState('total_desc');
