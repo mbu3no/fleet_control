@@ -3,7 +3,7 @@ import { Pencil, Trash2, Shield, Receipt } from 'lucide-react';
 import { PageHeader, TabBtn, DataTable, SectionPage, EmptyState, InfleetSyncBar, SearchInput } from '../components/ui.jsx';
 import { formatLocalDate, matchesSearch, daysUntil } from '../lib/format.js';
 
-export function ExpensesView({ vehicles, expenses, insurances, openModal, removeItem, getVehicleName, onSyncInfleet, syncingInfleet }) {
+export function ExpensesView({ vehicles, expenses, insurances, openModal, removeItem, getVehicleName, onSyncInfleet, syncingInfleet, canWrite, canDelete }) {
   const [section, setSection] = useState('insurances');
   const [expenseSearch, setExpenseSearch] = useState('');
   const filteredExpenses = expenses.filter(e => matchesSearch(e, expenseSearch, [
@@ -29,7 +29,7 @@ export function ExpensesView({ vehicles, expenses, insurances, openModal, remove
       </div>
 
       {section === 'insurances' && (
-        <SectionPage title="Seguros" count={insurances.length} canAdd={vehicles.length > 0} onAdd={() => openModal('insurance')} empty={insurances.length === 0} emptyIcon={Shield} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem seguros"}>
+        <SectionPage title="Seguros" count={insurances.length} canAdd={canWrite && vehicles.length > 0} onAdd={() => openModal('insurance')} empty={insurances.length === 0} emptyIcon={Shield} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem seguros"}>
           <div className="grid md:grid-cols-2 gap-4">
             {insurances.map(ins => {
               const st = status(ins);
@@ -44,8 +44,8 @@ export function ExpensesView({ vehicles, expenses, insurances, openModal, remove
                       <div className="text-xs text-slate-400">{ins.company}</div>
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openModal('insurance', ins)} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400"><Pencil size={14} /></button>
-                      <button onClick={() => removeItem('insurances', ins.id, 'Seguro')} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-400"><Trash2 size={14} /></button>
+                      {canWrite && <button onClick={() => openModal('insurance', ins)} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400"><Pencil size={14} /></button>}
+                      {canDelete && <button onClick={() => removeItem('insurances', ins.id, 'Seguro')} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-400"><Trash2 size={14} /></button>}
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-slate-500 mb-4">
@@ -67,7 +67,7 @@ export function ExpensesView({ vehicles, expenses, insurances, openModal, remove
 
       {section === 'expenses' && (
         <div>
-          <PageHeader title="Despesas" count={expenses.length} onAdd={vehicles.length > 0 ? () => openModal('expense') : null} />
+          <PageHeader title="Despesas" count={expenses.length} onAdd={canWrite && vehicles.length > 0 ? () => openModal('expense') : null} />
           {onSyncInfleet && (
             <InfleetSyncBar
               syncedCount={expenses.filter(e => e.infleet_id).length}
@@ -80,7 +80,7 @@ export function ExpensesView({ vehicles, expenses, insurances, openModal, remove
           {expenses.length === 0 ? <EmptyState icon={Receipt} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem despesas — cadastre manual ou sincronize da Infleet."} /> : (
             <>
             <SearchInput value={expenseSearch} onChange={setExpenseSearch} placeholder="Buscar por veículo, tipo, descrição, data..." />
-            <DataTable columns={['Data', 'Veículo', 'Tipo', 'Descrição', 'Valor']}
+            <DataTable columns={['Data', 'Veículo', 'Tipo', 'Descrição', 'Valor']} canEdit={canWrite} canDelete={canDelete}
               rows={filteredExpenses.map(e => ({ id: e.id, cells: [
                 <span className="flex items-center gap-2">
                   <span className="tabular-nums">{formatLocalDate(e.date)}</span>

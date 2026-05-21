@@ -88,7 +88,7 @@ export function Toast({ toast, onClose }) {
   );
 }
 
-export function PageHeader({ title, subtitle, count, onAdd }) {
+export function PageHeader({ title, subtitle, count, onAdd, addLabel }) {
   return (
     <div className="flex items-center justify-between mb-8 gap-4">
       <div className="min-w-0">
@@ -102,7 +102,7 @@ export function PageHeader({ title, subtitle, count, onAdd }) {
       </div>
       {onAdd && (
         <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-400 text-white text-sm font-medium shadow-sm shadow-violet-500/15 transition-colors">
-          <Plus size={16} strokeWidth={2.5} /><span className="hidden sm:inline">Adicionar</span>
+          <Plus size={16} strokeWidth={2.5} /><span className="hidden sm:inline">{addLabel || 'Adicionar'}</span>
         </button>
       )}
     </div>
@@ -126,7 +126,7 @@ export function TabBtn({ active, onClick, icon: Icon, children }) {
   );
 }
 
-export function DataTable({ columns, rows }) {
+export function DataTable({ columns, rows, canEdit = true, canDelete = true }) {
   const lastColIdx = columns.length - 1;
   return (
     <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50">
@@ -148,8 +148,8 @@ export function DataTable({ columns, rows }) {
                 ))}
                 <td className="px-6 py-4 text-right whitespace-nowrap border-l border-slate-800/40">
                   <div className="inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                    {row.onEdit && <button onClick={row.onEdit} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-violet-400 transition-colors"><Pencil size={14} /></button>}
-                    {row.onRemove && <button onClick={row.onRemove} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors"><Trash2 size={14} /></button>}
+                    {canEdit && row.onEdit && <button onClick={row.onEdit} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-violet-400 transition-colors"><Pencil size={14} /></button>}
+                    {canDelete && row.onRemove && <button onClick={row.onRemove} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors"><Trash2 size={14} /></button>}
                   </div>
                 </td>
               </tr>
