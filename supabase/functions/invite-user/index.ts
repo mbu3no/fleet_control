@@ -32,10 +32,9 @@ Deno.serve(async (req: Request) => {
 
     // 1. Identificar quem chamou, pelo token do header Authorization
     const authHeader = req.headers.get("Authorization") || "";
-    const callerClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user: caller } } = await callerClient.auth.getUser();
+    const token = authHeader.replace("Bearer ", "");
+    const callerClient = createClient(supabaseUrl, anonKey);
+    const { data: { user: caller } } = await callerClient.auth.getUser(token);
     if (!caller) return json({ ok: false, error: "Nao autenticado" }, 401);
 
     // 2. Confirmar que o chamador e admin ativo
