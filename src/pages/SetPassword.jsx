@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Car, Loader2, KeyRound, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Car, Loader2, KeyRound, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
 
 export function SetPasswordPage() {
@@ -8,6 +8,21 @@ export function SetPasswordPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  // checking = esperando o supabase-js processar o token do convite na URL
+  // ready = sessao do convite estabelecida, pode definir a senha
+  // nosession = nao chegou sessao (link invalido/expirado/ja usado)
+  const [status, setStatus] = useState('checking');
+
+  useEffect(() => {
+    let resolved = false;
+    const markReady = (sess) => {
+      if (sess && !resolved) { resolved = true; setStatus('ready'); }
+    };
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => markReady(sess));
+    supabase.auth.getSession().then(({ data }) => markReady(data.session));
+    const timer = setTimeout(() => { if (!resolved) setStatus('nosession'); }, 8000);
+    return () => { sub.subscription.unsubscribe(); clearTimeout(timer); };
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -18,7 +33,7 @@ export function SetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (error) {
-      setError('Nao foi possivel definir a senha. O link pode ter expirado; peca um novo convite.');
+      setError('Nao foi possivel definir a senha: ' + (error.message || 'erro desconhecido'));
       return;
     }
     setDone(true);
@@ -50,6 +65,20 @@ export function SetPasswordPage() {
               className="w-full py-2.5 rounded-xl bg-violet-500 hover:bg-violet-400 text-white text-sm font-medium transition-colors">
               Entrar no Fleet Control
             </button>
+          </div>
+        ) : status === 'checking' ? (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center">
+            <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
+              <Loader2 size={14} className="animate-spin" /> Validando o convite
+            </div>
+          </div>
+        ) : status === 'nosession' ? (
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center space-y-3">
+            <AlertTriangle size={28} className="text-amber-400 mx-auto" />
+            <p className="text-sm text-white">Convite invalido ou expirado.</p>
+            <p className="text-xs text-slate-400">
+              Abra o link do email de convite mais recente. Se nao funcionar, peca um novo convite ao administrador.
+            </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}
