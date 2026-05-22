@@ -14,7 +14,7 @@ DECLARE
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables
              WHERE table_schema='public' AND table_name='sync_state') THEN
-    tables := tables || 'sync_state';
+    tables := array_append(tables, 'sync_state');
   END IF;
 
   FOREACH t IN ARRAY tables LOOP
