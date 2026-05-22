@@ -164,7 +164,7 @@ function FleetApp() {
   }, [activeTab, role, isAdmin, allowedPages]);
 
   const openModal = (type, data = {}) => {
-    if (!canWrite) { showToast('error', 'Sem permissao', 'Voce nao pode criar ou editar registros'); return; }
+    if (!canWrite) { showToast('error', 'Sem permissão', 'Você não pode criar ou editar registros'); return; }
     setShowModal(type); setFormData(data);
   };
   const closeModal = () => { setShowModal(null); setFormData({}); };
@@ -189,7 +189,7 @@ function FleetApp() {
   };
 
   const removeItem = (table, id, label) => {
-    if (!canDelete) { showToast('error', 'Sem permissao', 'Apenas administradores podem excluir'); return; }
+    if (!canDelete) { showToast('error', 'Sem permissão', 'Apenas administradores podem excluir'); return; }
     setConfirmDialog({
       title: `Excluir ${label.toLowerCase()}`,
       message: `Esta ação não pode ser desfeita. Tem certeza?`,
@@ -472,7 +472,7 @@ function FleetApp() {
                 {isAdmin && (
                   <button onClick={() => { setActiveTab('users'); setSidebarOpen(false); }}
                     className={`w-full flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-lg text-sm transition-colors duration-150 border-l-2 ${activeTab === 'users' ? 'border-violet-400 text-white bg-slate-800/40' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}>
-                    <Users size={16} strokeWidth={2} /><span className="font-medium">Usuarios</span>
+                    <Users size={16} strokeWidth={2} /><span className="font-medium">Usuários</span>
                   </button>
                 )}
               </div>

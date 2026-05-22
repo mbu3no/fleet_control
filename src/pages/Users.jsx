@@ -17,7 +17,7 @@ export function UsersView({ showToast }) {
     setLoading(true);
     const { data, error } = await supabase
       .from('profiles').select('*').order('created_at');
-    if (error) showToast('error', 'Erro', 'Nao foi possivel carregar os usuarios');
+    if (error) showToast('error', 'Erro', 'Não foi possível carregar os usuários');
     else setUsers(data || []);
     setLoading(false);
   }
@@ -26,19 +26,19 @@ export function UsersView({ showToast }) {
 
   async function toggleActive(u) {
     if (u.id === me.id) {
-      showToast('error', 'Acao bloqueada', 'Voce nao pode desativar a si mesmo');
+      showToast('error', 'Ação bloqueada', 'Você não pode desativar a si mesmo');
       return;
     }
     const { error } = await supabase
       .from('profiles').update({ active: !u.active }).eq('id', u.id);
     if (error) { showToast('error', 'Erro', error.message); return; }
-    showToast('success', u.active ? 'Usuario desativado' : 'Usuario reativado', '');
+    showToast('success', u.active ? 'Usuário desativado' : 'Usuário reativado', '');
     load();
   }
 
   return (
     <div>
-      <PageHeader title="Usuarios" count={users.length}
+      <PageHeader title="Usuários" count={users.length}
         onAdd={() => setModal('invite')} addLabel="Convidar" />
 
       {loading ? (
@@ -46,7 +46,7 @@ export function UsersView({ showToast }) {
           <Loader2 size={14} className="animate-spin" /> Carregando
         </div>
       ) : users.length === 0 ? (
-        <EmptyState icon={ShieldCheck} text="Nenhum usuario ainda. Use Convidar." />
+        <EmptyState icon={ShieldCheck} text="Nenhum usuário ainda. Use Convidar." />
       ) : (
         <div className="rounded-xl border border-slate-800 overflow-hidden">
           <table className="w-full text-sm">
@@ -55,7 +55,7 @@ export function UsersView({ showToast }) {
                 <th className="text-left px-4 py-2.5">Nome</th>
                 <th className="text-left px-4 py-2.5">Email</th>
                 <th className="text-left px-4 py-2.5">Papel</th>
-                <th className="text-left px-4 py-2.5">Paginas</th>
+                <th className="text-left px-4 py-2.5">Páginas</th>
                 <th className="text-left px-4 py-2.5">Status</th>
                 <th className="px-4 py-2.5"></th>
               </tr>
@@ -71,7 +71,7 @@ export function UsersView({ showToast }) {
                       ? 'Todas'
                       : (u.allowed_pages || []).includes('*')
                         ? 'Todas'
-                        : `${(u.allowed_pages || []).length} pagina(s)`}
+                        : `${(u.allowed_pages || []).length} página(s)`}
                   </td>
                   <td className="px-4 py-2.5">
                     <span className={u.active ? 'text-emerald-400' : 'text-slate-500'}>
@@ -128,7 +128,7 @@ function UserModal({ mode, user, onClose, onSaved, showToast }) {
 
   async function handleSave() {
     if (mode === 'invite' && !email.trim()) {
-      showToast('error', 'Erro', 'Email obrigatorio'); return;
+      showToast('error', 'Erro', 'Email obrigatório'); return;
     }
     setSaving(true);
     const allowed_pages = buildAllowedPages();
@@ -156,7 +156,7 @@ function UserModal({ mode, user, onClose, onSaved, showToast }) {
         .eq('id', user.id);
       setSaving(false);
       if (error) { showToast('error', 'Erro', error.message); return; }
-      showToast('success', 'Usuario atualizado', '');
+      showToast('success', 'Usuário atualizado', '');
       onSaved();
     }
   }
@@ -166,7 +166,7 @@ function UserModal({ mode, user, onClose, onSaved, showToast }) {
       <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">
-            {mode === 'invite' ? 'Convidar usuario' : 'Editar usuario'}
+            {mode === 'invite' ? 'Convidar usuário' : 'Editar usuário'}
           </h2>
           <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={16} /></button>
         </div>
@@ -192,11 +192,11 @@ function UserModal({ mode, user, onClose, onSaved, showToast }) {
 
         {role !== 'admin' && (
           <div>
-            <label className="text-[11px] text-slate-400 uppercase tracking-wide">Paginas que pode ver</label>
+            <label className="text-[11px] text-slate-400 uppercase tracking-wide">Páginas que pode ver</label>
             <label className="flex items-center gap-2 mt-2 text-sm text-slate-300">
               <input type="checkbox" checked={allPages}
                 onChange={e => setAllPages(e.target.checked)} />
-              Todas as paginas
+              Todas as páginas
             </label>
             {!allPages && (
               <div className="grid grid-cols-2 gap-1.5 mt-2">
@@ -212,7 +212,7 @@ function UserModal({ mode, user, onClose, onSaved, showToast }) {
           </div>
         )}
         {role === 'admin' && (
-          <p className="text-[11px] text-slate-500">Admin sempre ve todas as paginas.</p>
+          <p className="text-[11px] text-slate-500">Admin sempre vê todas as páginas.</p>
         )}
 
         <button onClick={handleSave} disabled={saving}

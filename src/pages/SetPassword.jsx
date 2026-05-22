@@ -28,12 +28,12 @@ export function SetPasswordPage() {
     e.preventDefault();
     setError('');
     if (password.length < 8) { setError('A senha precisa ter ao menos 8 caracteres'); return; }
-    if (password !== confirm) { setError('As senhas nao conferem'); return; }
+    if (password !== confirm) { setError('As senhas não conferem'); return; }
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (error) {
-      setError('Nao foi possivel definir a senha: ' + (error.message || 'erro desconhecido'));
+      setError('Não foi possível definir a senha: ' + (error.message || 'erro desconhecido'));
       return;
     }
     setDone(true);
@@ -53,7 +53,7 @@ export function SetPasswordPage() {
           </div>
           <div>
             <div className="text-base font-semibold text-white tracking-tight">Fleet Control</div>
-            <div className="text-[10px] text-slate-500">Gestao integrada</div>
+            <div className="text-[10px] text-slate-500">Gestão integrada</div>
           </div>
         </div>
 
@@ -75,9 +75,9 @@ export function SetPasswordPage() {
         ) : status === 'nosession' ? (
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center space-y-3">
             <AlertTriangle size={28} className="text-amber-400 mx-auto" />
-            <p className="text-sm text-white">Convite invalido ou expirado.</p>
+            <p className="text-sm text-white">Convite inválido ou expirado.</p>
             <p className="text-xs text-slate-400">
-              Abra o link do email de convite mais recente. Se nao funcionar, peca um novo convite ao administrador.
+              Abra o link do email de convite mais recente. Se não funcionar, peça um novo convite ao administrador.
             </p>
           </div>
         ) : (

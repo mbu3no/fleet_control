@@ -28,7 +28,7 @@ export function LoginPage() {
           </div>
           <div>
             <div className="text-base font-semibold text-white tracking-tight">Fleet Control</div>
-            <div className="text-[10px] text-slate-500">Gestao integrada</div>
+            <div className="text-[10px] text-slate-500">Gestão integrada</div>
           </div>
         </div>
         <form onSubmit={handleSubmit}

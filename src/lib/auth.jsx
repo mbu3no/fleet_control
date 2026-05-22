@@ -6,11 +6,11 @@ const AuthContext = createContext(null);
 // Paginas que o admin pode liberar por usuario (alimenta o formulario de convite).
 // 'settings' e 'users' nao entram aqui: sao areas exclusivas de admin.
 export const PAGE_KEYS = [
-  { key: 'dashboard', label: 'Visao geral' },
-  { key: 'vehicles', label: 'Veiculos' },
+  { key: 'dashboard', label: 'Visão geral' },
+  { key: 'vehicles', label: 'Veículos' },
   { key: 'reservations', label: 'Reservas' },
   { key: 'fuelings', label: 'Abastecimentos' },
-  { key: 'maintenances', label: 'Manutencoes' },
+  { key: 'maintenances', label: 'Manutenções' },
   { key: 'expenses', label: 'Despesas' },
   { key: 'drivers', label: 'Motoristas' },
   { key: 'trips', label: 'Viagens' },
