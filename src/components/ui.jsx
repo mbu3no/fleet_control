@@ -135,19 +135,19 @@ export function DataTable({ columns, rows, canEdit = true, canDelete = true }) {
           <thead className="sticky top-0 z-10 bg-slate-900 backdrop-blur-xl">
             <tr className="border-b border-slate-800">
               {columns.map((col, i) => (
-                <th key={i} className={`text-left px-6 py-3.5 text-[11px] font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap ${i < lastColIdx ? 'border-r border-slate-800/60' : ''}`}>{col}</th>
+                <th key={i} className={`text-left px-3 sm:px-6 py-3 sm:py-3.5 text-[11px] font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap ${i < lastColIdx ? 'border-r border-slate-800/60' : ''}`}>{col}</th>
               ))}
-              <th className="px-6 py-3.5 border-l border-slate-800/60"></th>
+              <th className="px-3 sm:px-6 py-3 sm:py-3.5 border-l border-slate-800/60"></th>
             </tr>
           </thead>
           <tbody>
             {rows.map(row => (
               <tr key={row.id} className="border-b border-slate-800/50 last:border-0 text-sm text-slate-300 hover:bg-slate-800/30 transition-colors duration-150 group">
                 {row.cells.map((cell, i) => (
-                  <td key={i} className={`px-6 py-4 whitespace-nowrap ${i < lastColIdx ? 'border-r border-slate-800/40' : ''}`}>{cell}</td>
+                  <td key={i} className={`px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap ${i < lastColIdx ? 'border-r border-slate-800/40' : ''}`}>{cell}</td>
                 ))}
-                <td className="px-6 py-4 text-right whitespace-nowrap border-l border-slate-800/40">
-                  <div className="inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <td className="px-3 sm:px-6 py-3 sm:py-4 text-right whitespace-nowrap border-l border-slate-800/40">
+                  <div className="inline-flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-150">
                     {canEdit && row.onEdit && <button onClick={row.onEdit} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-violet-400 transition-colors"><Pencil size={14} /></button>}
                     {canDelete && row.onRemove && <button onClick={row.onRemove} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors"><Trash2 size={14} /></button>}
                   </div>

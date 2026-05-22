@@ -442,7 +442,7 @@ function FleetApp() {
       </div>
 
       <div className="relative">
-        <aside className={`fixed top-0 left-0 h-screen z-40 w-64 bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/50 transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+        <aside className={`fixed top-0 left-0 h-[100dvh] z-40 w-64 bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/50 transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
           <div className="h-full flex flex-col">
             <div className="p-6 border-b border-slate-800/50">
               <div className="flex items-center gap-3">
@@ -532,7 +532,7 @@ function FleetApp() {
             </button>
           </header>
 
-          <main className="max-w-7xl mx-auto px-6 lg:px-10 pb-8 lg:pb-10 pt-2 lg:pt-2">
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 pb-8 lg:pb-10 pt-2 lg:pt-2">
             {activeTab === 'dashboard' && <DashboardView vehicles={vehicles} trips={trips} fuelings={fuelings} maintenances={maintenances} expenses={expenses} insurances={insurances} reservations={reservations} pieColors={pieColors} />}
 
             {activeTab === 'vehicles' && (
@@ -662,7 +662,7 @@ function FleetApp() {
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                          <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex-shrink-0">
                             {canWrite && <button onClick={() => openModal('driver', d)} className="w-7 h-7 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-violet-400"><Pencil size={13} /></button>}
                             {canDelete && <button onClick={() => removeItem('drivers', d.id, 'Motorista')} className="w-7 h-7 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-rose-400"><Trash2 size={13} /></button>}
                           </div>

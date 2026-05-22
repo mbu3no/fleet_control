@@ -43,7 +43,7 @@ export function ExpensesView({ vehicles, expenses, insurances, openModal, remove
                       </div>
                       <div className="text-xs text-slate-400">{ins.company}</div>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       {canWrite && <button onClick={() => openModal('insurance', ins)} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400"><Pencil size={14} /></button>}
                       {canDelete && <button onClick={() => removeItem('insurances', ins.id, 'Seguro')} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-rose-400"><Trash2 size={14} /></button>}
                     </div>
