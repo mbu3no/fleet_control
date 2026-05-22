@@ -16,8 +16,14 @@ import { ExpensesView } from './pages/Expenses.jsx';
 import { ReservationsView } from './pages/Reservations.jsx';
 import { AllocationView } from './pages/Allocation.jsx';
 import { CostsView } from './pages/Costs.jsx';
+import { UsersView } from './pages/Users.jsx';
+import { useAuth, canSeePage } from './lib/auth.jsx';
+import { isPasswordSetupUrl } from './lib/recovery.js';
+import { LoginPage } from './pages/Login.jsx';
+import { SetPasswordPage } from './pages/SetPassword.jsx';
 
-export default function App() {
+function FleetApp() {
+  const { role, allowedPages, isAdmin, canWrite, canDelete, profile: currentUser, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showModal, setShowModal] = useState(null);
   const [formData, setFormData] = useState({});
@@ -142,7 +148,25 @@ export default function App() {
 
   useEffect(() => { loadAll(); }, []);
 
-  const openModal = (type, data = {}) => { setShowModal(type); setFormData(data); };
+  // Volta para uma pagina valida se a aba atual nao for permitida ao usuario
+  useEffect(() => {
+    const PAGES = ['dashboard', 'vehicles', 'reservations', 'fuelings',
+      'maintenances', 'expenses', 'drivers', 'trips', 'costs', 'allocation'];
+    const adminOnly = activeTab === 'users' || activeTab === 'settings';
+    if (adminOnly) {
+      if (!isAdmin) setActiveTab('dashboard');
+      return;
+    }
+    if (!canSeePage(activeTab, role, allowedPages)) {
+      const first = PAGES.find(p => canSeePage(p, role, allowedPages));
+      setActiveTab(first || 'dashboard');
+    }
+  }, [activeTab, role, isAdmin, allowedPages]);
+
+  const openModal = (type, data = {}) => {
+    if (!canWrite) { showToast('error', 'Sem permissão', 'Você não pode criar ou editar registros'); return; }
+    setShowModal(type); setFormData(data);
+  };
   const closeModal = () => { setShowModal(null); setFormData({}); };
 
   const saveGeneric = async (table, payload, id, label) => {
@@ -165,6 +189,7 @@ export default function App() {
   };
 
   const removeItem = (table, id, label) => {
+    if (!canDelete) { showToast('error', 'Sem permissão', 'Apenas administradores podem excluir'); return; }
     setConfirmDialog({
       title: `Excluir ${label.toLowerCase()}`,
       message: `Esta ação não pode ser desfeita. Tem certeza?`,
@@ -406,6 +431,8 @@ export default function App() {
     { id: 'costCenters', label: 'Centros de custo', icon: Wallet },
   ];
 
+  const visibleNav = mainNav.filter(item => canSeePage(item.id, role, allowedPages));
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 relative overflow-hidden">
       <div className="grain"></div>
@@ -432,7 +459,7 @@ export default function App() {
             <nav className="flex-1 p-4 overflow-y-auto">
               <div className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold px-3 mb-2">Principal</div>
               <div className="space-y-1">
-                {mainNav.map(item => {
+                {visibleNav.map(item => {
                   const Icon = item.icon;
                   const isActive = activeTab === item.id;
                   return (
@@ -442,6 +469,12 @@ export default function App() {
                     </button>
                   );
                 })}
+                {isAdmin && (
+                  <button onClick={() => { setActiveTab('users'); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-lg text-sm transition-colors duration-150 border-l-2 ${activeTab === 'users' ? 'border-violet-400 text-white bg-slate-800/40' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}>
+                    <Users size={16} strokeWidth={2} /><span className="font-medium">Usuários</span>
+                  </button>
+                )}
               </div>
             </nav>
 
@@ -449,6 +482,16 @@ export default function App() {
               <div className="px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
                 <Wifi size={11} className="text-emerald-400" />
                 <span className="text-[11px] font-medium text-emerald-300">Conectado ao Supabase</span>
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2 px-3">
+                <div className="min-w-0">
+                  <div className="text-[11px] text-slate-300 truncate">{currentUser?.name || currentUser?.email}</div>
+                  <div className="text-[10px] text-slate-600 capitalize">{role}</div>
+                </div>
+                <button onClick={signOut}
+                  className="text-[11px] px-2 py-1 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors">
+                  Sair
+                </button>
               </div>
             </div>
           </div>
@@ -465,9 +508,11 @@ export default function App() {
             <button onClick={loadAll} disabled={loadingData} className="w-9 h-9 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 transition-colors disabled:opacity-50" title="Atualizar dados" aria-label="Atualizar dados">
               <RefreshCw size={16} strokeWidth={2} className={loadingData ? 'animate-spin' : ''} />
             </button>
+            {isAdmin && (
             <button onClick={() => setActiveTab('settings')} className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${activeTab === 'settings' ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30' : 'hover:bg-slate-800 text-slate-300'}`} title="Configurações" aria-label="Configurações">
               <Settings size={16} strokeWidth={2} />
             </button>
+            )}
             <button onClick={toggleTheme} className="w-9 h-9 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 transition-colors" title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'} aria-label="Alternar tema">
               {theme === 'dark' ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
             </button>
@@ -477,9 +522,11 @@ export default function App() {
             <button onClick={loadAll} disabled={loadingData} className="w-9 h-9 rounded-lg hover:bg-slate-800/60 flex items-center justify-center text-slate-400 hover:text-white transition-colors disabled:opacity-50" title="Atualizar dados" aria-label="Atualizar dados">
               <RefreshCw size={16} strokeWidth={2} className={loadingData ? 'animate-spin' : ''} />
             </button>
+            {isAdmin && (
             <button onClick={() => setActiveTab('settings')} className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${activeTab === 'settings' ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30' : 'hover:bg-slate-800/60 text-slate-400 hover:text-white'}`} title="Configurações" aria-label="Configurações">
               <Settings size={16} strokeWidth={2} />
             </button>
+            )}
             <button onClick={toggleTheme} className="w-9 h-9 rounded-lg hover:bg-slate-800/60 flex items-center justify-center text-slate-400 hover:text-white transition-colors" title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'} aria-label="Alternar tema">
               {theme === 'dark' ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
             </button>
@@ -490,7 +537,7 @@ export default function App() {
 
             {activeTab === 'vehicles' && (
               <div>
-                <PageHeader title="Veículos" count={vehicles.length} onAdd={() => openModal('vehicle')} />
+                <PageHeader title="Veículos" count={vehicles.length} onAdd={canWrite ? () => openModal('vehicle') : undefined} />
                 <InfleetSyncBar
                   syncedCount={vehicles.filter(v => v.infleet_id).length}
                   totalCount={vehicles.length}
@@ -504,7 +551,7 @@ export default function App() {
                 </div>
                 {vehiclesTab === 'list' && (
                   vehicles.length === 0 ? <EmptyState icon={Car} text="Nenhum veículo cadastrado. Clique em 'Adicionar' para começar ou sincronize da Infleet." /> :
-                  <DataTable columns={['Placa', 'Modelo', 'Ano', 'Km', 'Valor', 'Status']}
+                  <DataTable columns={['Placa', 'Modelo', 'Ano', 'Km', 'Valor', 'Status']} canEdit={canWrite} canDelete={canDelete}
                     rows={vehicles.map(v => ({ id: v.id, cells: [
                       <span className="flex items-center gap-2"><span className="font-semibold text-white">{v.plate}</span>{v.infleet_id && <span title="Sincronizado da Infleet" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}</span>, v.model, v.year || '—',
                       `${Number(v.current_km || 0).toLocaleString('pt-BR')} km`,
@@ -517,7 +564,7 @@ export default function App() {
               </div>
             )}
 
-            {activeTab === 'reservations' && <ReservationsView vehicles={vehicles} reservations={reservations} openModal={openModal} removeItem={(id) => removeItem('reservations', id, 'Reserva')} updateStatus={updateReservationStatus} getVehicleName={getVehicleName} />}
+            {activeTab === 'reservations' && <ReservationsView vehicles={vehicles} reservations={reservations} openModal={openModal} removeItem={(id) => removeItem('reservations', id, 'Reserva')} updateStatus={updateReservationStatus} getVehicleName={getVehicleName} canWrite={canWrite} canDelete={canDelete} />}
 
             {activeTab === 'fuelings' && (() => {
               const q = tableSearch.fuelings || '';
@@ -528,7 +575,7 @@ export default function App() {
               ]));
               return (
                 <div>
-                  <PageHeader title="Abastecimentos" count={fuelings.length} onAdd={vehicles.length > 0 ? () => openModal('fueling') : null} />
+                  <PageHeader title="Abastecimentos" count={fuelings.length} onAdd={canWrite && vehicles.length > 0 ? () => openModal('fueling') : null} />
                   <InfleetSyncBar
                     title="Sincronização Webposto"
                     accent="amber"
@@ -541,7 +588,7 @@ export default function App() {
                   {fuelings.length === 0 ? <EmptyState icon={Fuel} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem abastecimentos — cadastre manual ou sincronize do Webposto."} /> : (
                     <>
                       <SearchInput value={q} onChange={v => updateSearch('fuelings', v)} placeholder="Buscar por veículo, data..." />
-                      <DataTable columns={['Data', 'Veículo', 'Litros', 'Valor', 'Km']}
+                      <DataTable columns={['Data', 'Veículo', 'Litros', 'Valor', 'Km']} canEdit={canWrite} canDelete={canDelete}
                         rows={filtered.map(f => ({ id: f.id, cells: [
                           <span className="flex items-center gap-2">
                             <span className="tabular-nums">{formatLocalDate(f.date)}</span>
@@ -565,9 +612,9 @@ export default function App() {
                 x => x.date,
               ]));
               return (
-                <SectionPage title="Manutenções" count={maintenances.length} canAdd={vehicles.length > 0} onAdd={() => openModal('maintenance')} empty={maintenances.length === 0} emptyIcon={Wrench} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem manutenções"}>
+                <SectionPage title="Manutenções" count={maintenances.length} canAdd={canWrite && vehicles.length > 0} onAdd={() => openModal('maintenance')} empty={maintenances.length === 0} emptyIcon={Wrench} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem manutenções"}>
                   <SearchInput value={q} onChange={v => updateSearch('maintenances', v)} placeholder="Buscar por veículo, tipo, data..." />
-                  <DataTable columns={['Data', 'Veículo', 'Tipo', 'Custo', 'Próxima (km)']}
+                  <DataTable columns={['Data', 'Veículo', 'Tipo', 'Custo', 'Próxima (km)']} canEdit={canWrite} canDelete={canDelete}
                     rows={filtered.map(m => ({ id: m.id, cells: [
                       formatLocalDate(m.date),
                       <span>{getVehicleName(m.vehicle_id)}</span>,
@@ -578,11 +625,11 @@ export default function App() {
               );
             })()}
 
-            {activeTab === 'expenses' && <ExpensesView vehicles={vehicles} expenses={expenses} insurances={insurances} openModal={openModal} removeItem={removeItem} getVehicleName={getVehicleName} onSyncInfleet={syncInfleet} syncingInfleet={syncingInfleet} />}
+            {activeTab === 'expenses' && <ExpensesView vehicles={vehicles} expenses={expenses} insurances={insurances} openModal={openModal} removeItem={removeItem} getVehicleName={getVehicleName} onSyncInfleet={syncInfleet} syncingInfleet={syncingInfleet} canWrite={canWrite} canDelete={canDelete} />}
 
             {activeTab === 'drivers' && (
               <div>
-                <PageHeader title="Motoristas" count={drivers.length} onAdd={() => openModal('driver')} />
+                <PageHeader title="Motoristas" count={drivers.length} onAdd={canWrite ? () => openModal('driver') : undefined} />
                 <InfleetSyncBar
                   syncedCount={drivers.filter(d => d.infleet_id).length}
                   totalCount={drivers.length}
@@ -616,8 +663,8 @@ export default function App() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                            <button onClick={() => openModal('driver', d)} className="w-7 h-7 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-violet-400"><Pencil size={13} /></button>
-                            <button onClick={() => removeItem('drivers', d.id, 'Motorista')} className="w-7 h-7 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-rose-400"><Trash2 size={13} /></button>
+                            {canWrite && <button onClick={() => openModal('driver', d)} className="w-7 h-7 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-violet-400"><Pencil size={13} /></button>}
+                            {canDelete && <button onClick={() => removeItem('drivers', d.id, 'Motorista')} className="w-7 h-7 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-rose-400"><Trash2 size={13} /></button>}
                           </div>
                         </div>
                       </div>
@@ -639,7 +686,7 @@ export default function App() {
               ]));
               return (
               <div>
-                <PageHeader title="Viagens" count={trips.length} onAdd={vehicles.length > 0 && drivers.length > 0 ? () => openModal('trip') : null} />
+                <PageHeader title="Viagens" count={trips.length} onAdd={canWrite && vehicles.length > 0 && drivers.length > 0 ? () => openModal('trip') : null} />
                 <InfleetSyncBar
                   syncedCount={trips.filter(t => t.infleet_trip_key).length}
                   totalCount={trips.length}
@@ -650,7 +697,7 @@ export default function App() {
                 {trips.length === 0 ? <EmptyState icon={MapPin} text={vehicles.length === 0 || drivers.length === 0 ? "Cadastre veículos e motoristas primeiro" : "Sem viagens — adicione manualmente ou sincronize da Infleet."} /> : (
                 <>
                 <SearchInput value={q} onChange={v => updateSearch('trips', v)} placeholder="Buscar por motorista, veículo, rota, data..." />
-                <DataTable columns={['Data', 'Motorista', 'Veículo', 'Rota', 'Km']}
+                <DataTable columns={['Data', 'Motorista', 'Veículo', 'Rota', 'Km']} canEdit={canWrite} canDelete={canDelete}
                   rows={filtered.map(t => ({ id: t.id, cells: [
                     <span className="flex items-center gap-2">
                       <span className="tabular-nums">{formatLocalDate(t.date)}</span>
@@ -694,7 +741,7 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'settings' && (
+            {activeTab === 'settings' && isAdmin && (
               <div>
                 <div className="mb-8">
                   <h2 className="text-2xl lg:text-3xl font-semibold text-white tracking-tight">Configurações</h2>
@@ -712,8 +759,8 @@ export default function App() {
                 </div>
 
                 {settingsSection === 'companies' && (
-                  <SectionPage title="Empresas" count={companies.length} canAdd={true} onAdd={() => openModal('company')} empty={companies.length === 0} emptyIcon={Building2} emptyText="Sem empresas. Clique em Adicionar para criar a primeira.">
-                    <DataTable columns={['Nome', 'CNPJ', 'Motoristas']}
+                  <SectionPage title="Empresas" count={companies.length} canAdd={canWrite} onAdd={() => openModal('company')} empty={companies.length === 0} emptyIcon={Building2} emptyText="Sem empresas. Clique em Adicionar para criar a primeira.">
+                    <DataTable columns={['Nome', 'CNPJ', 'Motoristas']} canEdit={canWrite} canDelete={canDelete}
                       rows={companies.map(c => ({ id: c.id, cells: [
                         <span className="font-medium text-white">{c.name}</span>, c.cnpj || '—',
                         drivers.filter(d => d.company_id == c.id).length
@@ -723,8 +770,8 @@ export default function App() {
                 )}
 
                 {settingsSection === 'costCenters' && (
-                  <SectionPage title="Centros de custo" count={costCenters.length} canAdd={true} onAdd={() => openModal('costCenter')} empty={costCenters.length === 0} emptyIcon={Wallet} emptyText="Sem centros de custo">
-                    <DataTable columns={['Código', 'Nome', 'Empresa', 'Motoristas']}
+                  <SectionPage title="Centros de custo" count={costCenters.length} canAdd={canWrite} onAdd={() => openModal('costCenter')} empty={costCenters.length === 0} emptyIcon={Wallet} emptyText="Sem centros de custo">
+                    <DataTable columns={['Código', 'Nome', 'Empresa', 'Motoristas']} canEdit={canWrite} canDelete={canDelete}
                       rows={costCenters.map(c => ({ id: c.id, cells: [
                         <span className="font-mono font-semibold text-white">{c.code}</span>, c.name,
                         getCompanyName(c.company_id),
@@ -735,6 +782,8 @@ export default function App() {
                 )}
               </div>
             )}
+
+            {activeTab === 'users' && isAdmin && <UsersView showToast={showToast} />}
           </main>
         </div>
       </div>
@@ -919,4 +968,27 @@ export default function App() {
       <ConfirmDialog dialog={confirmDialog} onClose={() => setConfirmDialog(null)} />
     </div>
   );
+}
+
+function AuthLoadingScreen() {
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="flex items-center gap-2 text-xs text-slate-500">
+        <Loader2 size={14} className="animate-spin" />
+        Carregando
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const { session, profile, loading } = useAuth();
+
+  // Link de convite/recuperacao: define a senha, independente de sessao
+  if (isPasswordSetupUrl) return <SetPasswordPage />;
+
+  if (loading) return <AuthLoadingScreen />;
+  if (!session || !profile) return <LoginPage />;
+
+  return <FleetApp />;
 }
