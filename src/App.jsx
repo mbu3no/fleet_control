@@ -72,8 +72,9 @@ function FleetApp() {
       const d = data.drivers || { inserted: 0, updated: 0, errors: [] };
       const t = data.trips || { inserted: 0, updated: 0, errors: [] };
       const e = data.expenses || { inserted: 0, updated: 0, errors: [] };
-      const totalErrors = (v.errors?.length || 0) + (d.errors?.length || 0) + (t.errors?.length || 0) + (e.errors?.length || 0);
-      const summary = `Veículos: +${v.inserted}/~${v.updated} · Motoristas: +${d.inserted}/~${d.updated} · Viagens: +${t.inserted} · Despesas: +${e.inserted}/~${e.updated}`;
+      const m = data.maintenances || { inserted: 0, updated: 0, errors: [] };
+      const totalErrors = (v.errors?.length || 0) + (d.errors?.length || 0) + (t.errors?.length || 0) + (e.errors?.length || 0) + (m.errors?.length || 0);
+      const summary = `Veículos: +${v.inserted}/~${v.updated} · Motoristas: +${d.inserted}/~${d.updated} · Viagens: +${t.inserted} · Despesas: +${e.inserted}/~${e.updated} · Manutenções: +${m.inserted}/~${m.updated}`;
       if (totalErrors > 0) {
         showToast('error', 'Sincronização com avisos', `${summary} · ${totalErrors} erros`);
       } else {
@@ -612,16 +613,31 @@ function FleetApp() {
                 x => x.date,
               ]));
               return (
-                <SectionPage title="Manutenções" count={maintenances.length} canAdd={canWrite && vehicles.length > 0} onAdd={() => openModal('maintenance')} empty={maintenances.length === 0} emptyIcon={Wrench} emptyText={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem manutenções"}>
-                  <SearchInput value={q} onChange={v => updateSearch('maintenances', v)} placeholder="Buscar por veículo, tipo, data..." />
-                  <DataTable columns={['Data', 'Veículo', 'Tipo', 'Custo', 'Próxima (km)']} canEdit={canWrite} canDelete={canDelete}
-                    rows={filtered.map(m => ({ id: m.id, cells: [
-                      formatLocalDate(m.date),
-                      <span>{getVehicleName(m.vehicle_id)}</span>,
-                      m.type, `R$ ${Number(m.cost).toFixed(2)}`, m.next_km > 0 ? Number(m.next_km).toLocaleString('pt-BR') : '—'
-                    ], onEdit: () => openModal('maintenance', m),
-                       onRemove: () => removeItem('maintenances', m.id, 'Manutenção') }))} />
-                </SectionPage>
+                <div>
+                  <PageHeader title="Manutenções" count={maintenances.length} onAdd={canWrite && vehicles.length > 0 ? () => openModal('maintenance') : null} />
+                  <InfleetSyncBar
+                    syncedCount={maintenances.filter(m => m.infleet_id).length}
+                    totalCount={maintenances.length}
+                    lastSync={maintenances.reduce((a, m) => (m.last_synced_at && (!a || m.last_synced_at > a)) ? m.last_synced_at : a, null)}
+                    onSync={syncInfleet}
+                    syncing={syncingInfleet}
+                  />
+                  {maintenances.length === 0 ? <EmptyState icon={Wrench} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem manutenções — cadastre manual ou sincronize da Infleet."} /> : (
+                    <>
+                      <SearchInput value={q} onChange={v => updateSearch('maintenances', v)} placeholder="Buscar por veículo, tipo, data..." />
+                      <DataTable columns={['Data', 'Veículo', 'Tipo', 'Custo', 'Próxima (km)']} canEdit={canWrite} canDelete={canDelete}
+                        rows={filtered.map(m => ({ id: m.id, cells: [
+                          <span className="flex items-center gap-2">
+                            <span className="tabular-nums">{formatLocalDate(m.date)}</span>
+                            {m.infleet_id && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
+                          </span>,
+                          <span>{getVehicleName(m.vehicle_id)}</span>,
+                          m.type, `R$ ${Number(m.cost).toFixed(2)}`, m.next_km > 0 ? Number(m.next_km).toLocaleString('pt-BR') : '—'
+                        ], onEdit: () => openModal('maintenance', m),
+                           onRemove: () => removeItem('maintenances', m.id, 'Manutenção') }))} />
+                    </>
+                  )}
+                </div>
               );
             })()}
 

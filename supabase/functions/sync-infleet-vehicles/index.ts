@@ -68,12 +68,19 @@ Deno.serve(async (req: Request) => {
       errors: [{ key: "all", action: "fetch_or_sync", error: String((e as Error)?.message || e) }],
     }));
 
+    const maintenances = await syncMaintenances(supabase, infleetToken, now).catch((e): SyncResult => ({
+      inserted: 0,
+      updated: 0,
+      errors: [{ key: "all", action: "fetch_or_sync", error: String((e as Error)?.message || e) }],
+    }));
+
     return json({
       ok: true,
       vehicles,
       drivers,
       trips,
       expenses,
+      maintenances,
       synced_at: now,
     });
   } catch (e) {
@@ -500,6 +507,124 @@ async function syncExpenses(supabase: SupabaseClient, token: string, now: string
     } else {
       const { error } = await supabase.from("expenses").insert([payload]);
       if (error) errors.push({ key: exp.id, action: "insert", error: error.message });
+      else inserted++;
+    }
+  }
+
+  return { inserted, updated, errors };
+}
+
+// =====================================================================
+// MANUTENÇÕES
+// =====================================================================
+interface InfleetMaintenanceTask {
+  id: string;
+  totalCost: number | null;
+}
+interface InfleetMaintenance {
+  id: string;
+  occurredAt: string;
+  reason: string | null;
+  vehicleId: string | null;
+  status: { name: string } | null;
+  maintenanceTasks: InfleetMaintenanceTask[] | null;
+}
+
+async function fetchInfleetMaintenances(token: string, fromIso: string, toIso: string): Promise<InfleetMaintenance[]> {
+  // O filtro occurredAt (PeriodInput) e obrigatorio na pratica: sem ele
+  // a query retorna "unknown" (descoberto via suporte/teste 25/05).
+  const query = `query Maint($filter: ListMaintenancesFilterInput) {
+    listMaintenances(filter: $filter, limit: 1000, offset: 0) {
+      id occurredAt vehicleId reason
+      status { name }
+      maintenanceTasks { id totalCost }
+    }
+  }`;
+  const variables = { filter: { occurredAt: { startAt: fromIso, endAt: toIso } } };
+  const res = await fetch(INFLEET_URL, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) throw new Error(`Infleet HTTP ${res.status}: ${await res.text()}`);
+  const body = await res.json();
+  if (body.errors) throw new Error(`Infleet GraphQL (maintenances): ${JSON.stringify(body.errors)}`);
+  return body?.data?.listMaintenances || [];
+}
+
+async function syncMaintenances(supabase: SupabaseClient, token: string, now: string): Promise<SyncResult> {
+  // Janela ampla: ultimos 365 dias
+  const toDate = new Date();
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - 365);
+
+  const infleetMaints = await fetchInfleetMaintenances(token, fromDate.toISOString(), toDate.toISOString());
+
+  // Mapa vehicle infleet_id -> local id
+  const { data: vehicles, error: vErr } = await supabase
+    .from("vehicles")
+    .select("id, infleet_id")
+    .not("infleet_id", "is", null);
+  if (vErr) throw vErr;
+  const vehicleByInfleet = new Map<string, number>();
+  for (const v of vehicles || []) {
+    if (v.infleet_id) vehicleByInfleet.set(v.infleet_id, v.id);
+  }
+
+  // Manutencoes ja sincronizadas (matching por infleet_id)
+  const { data: existing, error: mErr } = await supabase
+    .from("maintenances")
+    .select("id, infleet_id")
+    .not("infleet_id", "is", null);
+  if (mErr) throw mErr;
+  const byInfleetId = new Map<string, number>();
+  for (const m of existing || []) {
+    if (m.infleet_id) byInfleetId.set(m.infleet_id, m.id);
+  }
+
+  let inserted = 0;
+  let updated = 0;
+  const errors: SyncResult["errors"] = [];
+
+  for (const m of infleetMaints) {
+    if (!m.vehicleId) {
+      errors.push({ key: m.id, action: "skip", error: "manutencao sem vehicleId" });
+      continue;
+    }
+    const localVehicleId = vehicleByInfleet.get(m.vehicleId);
+    if (!localVehicleId) {
+      errors.push({ key: m.id, action: "skip", error: `veiculo Infleet ${m.vehicleId} nao mapeado` });
+      continue;
+    }
+
+    // Data em BRT a partir do occurredAt
+    const date = new Date(m.occurredAt).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
+    // Custo total = soma dos totalCost das tasks (Infleet nao expoe custo direto no Maintenance)
+    const cost = (m.maintenanceTasks || []).reduce(
+      (s, t) => s + (Number(t.totalCost) || 0),
+      0,
+    );
+
+    const type = (m.reason || "Manutencao").trim();
+
+    const payload = {
+      infleet_id: m.id,
+      vehicle_id: localVehicleId,
+      type,
+      date,
+      cost: Math.round(cost * 100) / 100,
+      last_synced_at: now,
+    };
+
+    const match = byInfleetId.get(m.id);
+    if (match) {
+      const { error } = await supabase.from("maintenances").update(payload).eq("id", match);
+      if (error) errors.push({ key: m.id, action: "update", error: error.message });
+      else updated++;
+    } else {
+      const { error } = await supabase.from("maintenances").insert([payload]);
+      if (error) errors.push({ key: m.id, action: "insert", error: error.message });
       else inserted++;
     }
   }
