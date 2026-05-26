@@ -24,7 +24,10 @@ import { SetPasswordPage } from './pages/SetPassword.jsx';
 
 function FleetApp() {
   const { role, allowedPages, isAdmin, canWrite, canDelete, profile: currentUser, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    const path = (typeof window !== 'undefined' && window.location.pathname) || '/';
+    return PATH_TO_TAB[path] || 'dashboard';
+  });
   const [showModal, setShowModal] = useState(null);
   const [formData, setFormData] = useState({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -163,6 +166,23 @@ function FleetApp() {
       setActiveTab(first || 'dashboard');
     }
   }, [activeTab, role, isAdmin, allowedPages]);
+
+  // Mantem a URL sincronizada com a aba ativa (e vice-versa, com back/forward)
+  useEffect(() => {
+    const sync = () => {
+      const path = window.location.pathname || '/';
+      setActiveTab(PATH_TO_TAB[path] || 'dashboard');
+    };
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+
+  useEffect(() => {
+    const path = TAB_TO_PATH[activeTab] || '/';
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+  }, [activeTab]);
 
   // Atualiza o titulo da aba do navegador conforme a pagina
   useEffect(() => {
@@ -1016,6 +1036,22 @@ function AuthLoadingScreen() {
     </div>
   );
 }
+
+const TAB_TO_PATH = {
+  dashboard: '/',
+  vehicles: '/veiculos',
+  reservations: '/reservas',
+  fuelings: '/abastecimentos',
+  maintenances: '/manutencoes',
+  expenses: '/despesas',
+  drivers: '/motoristas',
+  trips: '/viagens',
+  costs: '/custos',
+  allocation: '/rateio',
+  settings: '/configuracoes',
+  users: '/usuarios',
+};
+const PATH_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_PATH).map(([k, v]) => [v, k]));
 
 export default function App() {
   const { session, profile, loading } = useAuth();
