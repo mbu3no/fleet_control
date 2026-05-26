@@ -13,6 +13,8 @@ export function SetPasswordPage() {
   // nosession = nao chegou sessao (link invalido/expirado/ja usado)
   const [status, setStatus] = useState('checking');
 
+  useEffect(() => { document.title = 'Definir senha · Fleet Control'; }, []);
+
   useEffect(() => {
     let resolved = false;
     const markReady = (sess) => {

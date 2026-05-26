@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Car, Loader2, LogIn } from 'lucide-react';
 import { useAuth } from '../lib/auth.jsx';
 
@@ -8,6 +8,8 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => { document.title = 'Entrar · Fleet Control'; }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();

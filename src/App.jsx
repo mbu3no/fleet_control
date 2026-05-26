@@ -164,6 +164,26 @@ function FleetApp() {
     }
   }, [activeTab, role, isAdmin, allowedPages]);
 
+  // Atualiza o titulo da aba do navegador conforme a pagina
+  useEffect(() => {
+    const titles = {
+      dashboard: 'Visão geral',
+      vehicles: 'Veículos',
+      reservations: 'Reservas',
+      fuelings: 'Abastecimentos',
+      maintenances: 'Manutenções',
+      expenses: 'Despesas',
+      drivers: 'Motoristas',
+      trips: 'Viagens',
+      costs: 'Custos',
+      allocation: 'Rateio',
+      settings: 'Configurações',
+      users: 'Usuários',
+    };
+    const label = titles[activeTab];
+    document.title = label ? `${label} · Fleet Control` : 'Fleet Control';
+  }, [activeTab]);
+
   const openModal = (type, data = {}) => {
     if (!canWrite) { showToast('error', 'Sem permissão', 'Você não pode criar ou editar registros'); return; }
     setShowModal(type); setFormData(data);
