@@ -18,13 +18,24 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 
-// Helper para buscar dados de uma tabela com tratamento de erro
+// Helper para buscar dados de uma tabela com tratamento de erro.
+// Pagina automaticamente — o Supabase tem limite padrao de 1000 linhas por
+// request, e tabelas grandes (ex: trips com histórico Cobli) excedem isso.
 export async function fetchTable(table, query = {}) {
-  let q = supabase.from(table).select('*');
-  if (query.order) q = q.order(query.order, { ascending: query.ascending !== false });
-  const { data, error } = await q;
-  if (error) throw new Error(`Erro ao buscar ${table}: ${error.message}`);
-  return data || [];
+  const PAGE = 1000;
+  let all = [];
+  let from = 0;
+  while (true) {
+    let q = supabase.from(table).select('*').range(from, from + PAGE - 1);
+    if (query.order) q = q.order(query.order, { ascending: query.ascending !== false });
+    const { data, error } = await q;
+    if (error) throw new Error(`Erro ao buscar ${table}: ${error.message}`);
+    if (!data || data.length === 0) break;
+    all = all.concat(data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
 }
 
 // Helpers para CRUD
