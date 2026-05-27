@@ -61,6 +61,7 @@ function FleetApp() {
   const [syncingWebposto, setSyncingWebposto] = useState(false);
   const [tableSearch, setTableSearch] = useState({});
   const updateSearch = (key, val) => setTableSearch(s => ({ ...s, [key]: val }));
+  const [tripFilters, setTripFilters] = useState({ driver: '__all__', vehicle: '__all__' });
   const [confirmDialog, setConfirmDialog] = useState(null);
 
   const showToast = (type, title, message, duration) => setToast({ type, title, message, duration });
@@ -392,7 +393,7 @@ function FleetApp() {
   };
 
   const getVehicleName = (id) => { const v = vehicles.find(v => v.id == id); return v ? `${v.plate} · ${v.model}` : 'N/A'; };
-  const getDriverName = (id) => { const d = drivers.find(d => d.id == id); return d ? d.name : 'N/A'; };
+  const getDriverName = (id) => { if (id == null) return '(sem motorista)'; const d = drivers.find(d => d.id == id); return d ? d.name : 'N/A'; };
   const getCompanyName = (id) => { const c = companies.find(c => c.id == id); return c ? c.name : '—'; };
   const getCostCenterName = (id) => { const c = costCenters.find(c => c.id == id); return c ? `${c.code} · ${c.name}` : '—'; };
 
@@ -733,13 +734,22 @@ function FleetApp() {
 
             {activeTab === 'trips' && (() => {
               const q = tableSearch.trips || '';
-              const filtered = trips.filter(t => matchesSearch(t, q, [
-                x => getDriverName(x.driver_id),
-                x => getVehicleName(x.vehicle_id),
-                x => x.date,
-                x => x.origin,
-                x => x.destination,
-              ]));
+              const filtered = trips.filter(t => {
+                if (!matchesSearch(t, q, [
+                  x => getDriverName(x.driver_id),
+                  x => getVehicleName(x.vehicle_id),
+                  x => x.date,
+                  x => x.origin,
+                  x => x.destination,
+                ])) return false;
+                if (tripFilters.driver === '__none__') { if (t.driver_id != null) return false; }
+                else if (tripFilters.driver !== '__all__') { if (String(t.driver_id) !== tripFilters.driver) return false; }
+                if (tripFilters.vehicle !== '__all__') { if (String(t.vehicle_id) !== tripFilters.vehicle) return false; }
+                return true;
+              });
+              const driversSorted = [...drivers].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+              const vehiclesSorted = [...vehicles].sort((a, b) => (a.plate || '').localeCompare(b.plate || ''));
+              const filtersActive = tripFilters.driver !== '__all__' || tripFilters.vehicle !== '__all__';
               return (
               <div>
                 <PageHeader title="Viagens" count={trips.length} onAdd={canWrite && vehicles.length > 0 && drivers.length > 0 ? () => openModal('trip') : null} />
@@ -752,14 +762,37 @@ function FleetApp() {
                 />
                 {trips.length === 0 ? <EmptyState icon={MapPin} text={vehicles.length === 0 || drivers.length === 0 ? "Cadastre veículos e motoristas primeiro" : "Sem viagens — adicione manualmente ou sincronize da Infleet."} /> : (
                 <>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <select value={tripFilters.driver} onChange={e => setTripFilters(f => ({ ...f, driver: e.target.value }))}
+                    className="px-3 py-2 rounded-lg bg-slate-900/50 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
+                    <option value="__all__">Todos os motoristas</option>
+                    <option value="__none__">(sem motorista)</option>
+                    {driversSorted.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+                  </select>
+                  <select value={tripFilters.vehicle} onChange={e => setTripFilters(f => ({ ...f, vehicle: e.target.value }))}
+                    className="px-3 py-2 rounded-lg bg-slate-900/50 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
+                    <option value="__all__">Todos os veículos</option>
+                    {vehiclesSorted.map(v => <option key={v.id} value={String(v.id)}>{v.plate} · {v.model}</option>)}
+                  </select>
+                  {filtersActive && (
+                    <button onClick={() => setTripFilters({ driver: '__all__', vehicle: '__all__' })}
+                      className="px-3 py-2 rounded-lg border border-slate-800 text-xs text-slate-400 hover:text-white hover:bg-slate-800">
+                      Limpar filtros
+                    </button>
+                  )}
+                  <span className="text-xs text-slate-500 ml-auto tabular-nums">{filtered.length} de {trips.length}</span>
+                </div>
                 <SearchInput value={q} onChange={v => updateSearch('trips', v)} placeholder="Buscar por motorista, veículo, rota, data..." />
                 <DataTable columns={['Data', 'Motorista', 'Veículo', 'Rota', 'Km']} canEdit={canWrite} canDelete={canDelete}
                   rows={filtered.map(t => ({ id: t.id, cells: [
                     <span className="flex items-center gap-2">
                       <span className="tabular-nums">{formatLocalDate(t.date)}</span>
                       {t.infleet_trip_key && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
+                      {t.cobli_path_key && <span title="Importado da Cobli (historico)" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-slate-500/10 text-slate-300 border border-slate-500/20 font-medium tracking-wide">COBLI</span>}
                     </span>,
-                    <span>{getDriverName(t.driver_id)}</span>,
+                    t.driver_id == null
+                      ? <span className="text-slate-500 italic">(sem motorista)</span>
+                      : <span>{getDriverName(t.driver_id)}</span>,
                     getVehicleName(t.vehicle_id),
                     (t.origin || t.destination)
                       ? <span className="text-slate-300">{t.origin || '—'} <span className="text-slate-600">→</span> {t.destination || '—'}</span>
