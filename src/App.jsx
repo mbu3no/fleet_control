@@ -752,7 +752,7 @@ function FleetApp() {
               const driversSorted = [...drivers].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
               const vehiclesSorted = [...vehicles].sort((a, b) => (a.plate || '').localeCompare(b.plate || ''));
               const filtersActive = tripFilters.driver !== '__all__' || tripFilters.vehicle !== '__all__';
-              const PAGE_SIZE = 100;
+              const PAGE_SIZE = 200;
               const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
               const safePage = Math.min(tripPage, totalPages);
               const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
