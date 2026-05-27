@@ -62,6 +62,8 @@ function FleetApp() {
   const [tableSearch, setTableSearch] = useState({});
   const updateSearch = (key, val) => setTableSearch(s => ({ ...s, [key]: val }));
   const [tripFilters, setTripFilters] = useState({ driver: '__all__', vehicle: '__all__' });
+  const [tripPage, setTripPage] = useState(1);
+  useEffect(() => { setTripPage(1); }, [tripFilters, tableSearch.trips]);
   const [confirmDialog, setConfirmDialog] = useState(null);
 
   const showToast = (type, title, message, duration) => setToast({ type, title, message, duration });
@@ -750,6 +752,10 @@ function FleetApp() {
               const driversSorted = [...drivers].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
               const vehiclesSorted = [...vehicles].sort((a, b) => (a.plate || '').localeCompare(b.plate || ''));
               const filtersActive = tripFilters.driver !== '__all__' || tripFilters.vehicle !== '__all__';
+              const PAGE_SIZE = 100;
+              const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+              const safePage = Math.min(tripPage, totalPages);
+              const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
               return (
               <div>
                 <PageHeader title="Viagens" count={trips.length} onAdd={canWrite && vehicles.length > 0 && drivers.length > 0 ? () => openModal('trip') : null} />
@@ -784,7 +790,7 @@ function FleetApp() {
                 </div>
                 <SearchInput value={q} onChange={v => updateSearch('trips', v)} placeholder="Buscar por motorista, veículo, rota, data..." />
                 <DataTable columns={['Data', 'Motorista', 'Veículo', 'Rota', 'Km']} canEdit={canWrite} canDelete={canDelete}
-                  rows={filtered.map(t => ({ id: t.id, cells: [
+                  rows={pageRows.map(t => ({ id: t.id, cells: [
                     <span className="flex items-center gap-2">
                       <span className="tabular-nums">{formatLocalDate(t.date)}</span>
                       {t.infleet_trip_key && <span title="Sincronizado da Infleet" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium tracking-wide">INFLEET</span>}
@@ -800,6 +806,21 @@ function FleetApp() {
                     <span className="tabular-nums">{Number(t.km || 0).toFixed(1).replace('.', ',')} km</span>
                   ], onEdit: () => openModal('trip', t),
                      onRemove: () => removeItem('trips', t.id, 'Viagem') }))} />
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between text-xs text-slate-500 mt-3 flex-wrap gap-2">
+                    <span className="tabular-nums">Página {safePage} de {totalPages} · mostrando {pageRows.length} de {filtered.length}</span>
+                    <div className="flex gap-1">
+                      <button onClick={() => setTripPage(1)} disabled={safePage === 1}
+                        className="px-2.5 py-1 rounded-lg border border-slate-800 disabled:opacity-30 hover:bg-slate-800 transition-colors">«</button>
+                      <button onClick={() => setTripPage(p => Math.max(1, p - 1))} disabled={safePage === 1}
+                        className="px-2.5 py-1 rounded-lg border border-slate-800 disabled:opacity-30 hover:bg-slate-800 transition-colors">‹ Anterior</button>
+                      <button onClick={() => setTripPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+                        className="px-2.5 py-1 rounded-lg border border-slate-800 disabled:opacity-30 hover:bg-slate-800 transition-colors">Próxima ›</button>
+                      <button onClick={() => setTripPage(totalPages)} disabled={safePage === totalPages}
+                        className="px-2.5 py-1 rounded-lg border border-slate-800 disabled:opacity-30 hover:bg-slate-800 transition-colors">»</button>
+                    </div>
+                  </div>
+                )}
                 </>
                 )}
               </div>
