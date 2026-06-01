@@ -208,7 +208,9 @@ function FleetApp() {
   }, [activeTab]);
 
   const openModal = (type, data = {}) => {
-    if (!canWrite) { showToast('error', 'Sem permissão', 'Você não pode criar ou editar registros'); return; }
+    // Excecao: visualizador pode CRIAR reserva (nao editar)
+    const isReservationCreate = type === 'reservation' && !data.id;
+    if (!canWrite && !isReservationCreate) { showToast('error', 'Sem permissão', 'Você não pode criar ou editar registros'); return; }
     setShowModal(type); setFormData(data);
   };
   const closeModal = () => { setShowModal(null); setFormData({}); };
@@ -608,7 +610,7 @@ function FleetApp() {
               </div>
             )}
 
-            {activeTab === 'reservations' && <ReservationsView vehicles={vehicles} reservations={reservations} openModal={openModal} removeItem={(id) => removeItem('reservations', id, 'Reserva')} updateStatus={updateReservationStatus} getVehicleName={getVehicleName} canWrite={canWrite} canDelete={canDelete} />}
+            {activeTab === 'reservations' && <ReservationsView vehicles={vehicles} reservations={reservations} openModal={openModal} removeItem={(id) => removeItem('reservations', id, 'Reserva')} updateStatus={updateReservationStatus} getVehicleName={getVehicleName} canWrite={canWrite} canDelete={canDelete} canCreate={canWrite || role === 'viewer'} />}
 
             {activeTab === 'fuelings' && (() => {
               const q = tableSearch.fuelings || '';

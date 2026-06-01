@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Car, CalendarCheck, Clock, Pencil, Trash2, CheckCircle2, X } from 'lucide-react';
 import { PageHeader, EmptyState } from '../components/ui.jsx';
 
-export function ReservationsView({ vehicles, reservations, openModal, removeItem, updateStatus, getVehicleName, canWrite, canDelete }) {
+export function ReservationsView({ vehicles, reservations, openModal, removeItem, updateStatus, getVehicleName, canWrite, canDelete, canCreate }) {
   const [filter, setFilter] = useState('all');
   const sc = {
     pendente: { cls: 'bg-amber-500/10 text-amber-300 border-amber-500/20', label: 'Pendente' },
@@ -17,7 +17,7 @@ export function ReservationsView({ vehicles, reservations, openModal, removeItem
 
   return (
     <div>
-      <PageHeader title="Reservas" count={reservations.length} onAdd={canWrite && vehicles.length > 0 ? () => openModal('reservation') : null} />
+      <PageHeader title="Reservas" count={reservations.length} onAdd={canCreate && vehicles.length > 0 ? () => openModal('reservation') : null} />
       <div className="flex gap-2 flex-wrap mb-6">
         {['all', 'pendente', 'confirmada', 'em_andamento', 'concluida'].map(s => {
           const count = s === 'all' ? reservations.length : reservations.filter(r => r.status === s).length;
