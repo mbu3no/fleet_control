@@ -36,6 +36,20 @@ export function UsersView({ showToast }) {
     load();
   }
 
+  async function resendInvite(u) {
+    const { data, error } = await supabase.functions.invoke('resend-invite', {
+      body: { email: u.email, redirectTo: window.location.origin },
+    });
+    if (error || !data?.ok) {
+      showToast('error', 'Erro', data?.error || error?.message || 'Falha ao reenviar');
+      return;
+    }
+    const msg = data.mode === 'recovery'
+      ? `Link de redefinição de senha enviado para ${u.email}`
+      : `Novo convite enviado para ${u.email}`;
+    showToast('success', 'Email enviado', msg);
+  }
+
   return (
     <div>
       <PageHeader title="Usuários" count={users.length}
@@ -80,9 +94,16 @@ export function UsersView({ showToast }) {
                   </td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap">
                     <button onClick={() => setModal({ ...u })}
-                      className="w-8 h-8 rounded-lg hover:bg-slate-800 inline-flex items-center justify-center text-slate-400">
+                      className="w-8 h-8 rounded-lg hover:bg-slate-800 inline-flex items-center justify-center text-slate-400" title="Editar">
                       <Pencil size={14} />
                     </button>
+                    {u.active && (
+                      <button onClick={() => resendInvite(u)}
+                        className="ml-1 text-[11px] px-2 py-1 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800"
+                        title="Reenvia o convite (ou link de redefinição se a pessoa já tem senha)">
+                        Reenviar
+                      </button>
+                    )}
                     <button onClick={() => toggleActive(u)}
                       className="ml-1 text-[11px] px-2 py-1 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800">
                       {u.active ? 'Desativar' : 'Reativar'}
