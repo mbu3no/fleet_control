@@ -12,6 +12,7 @@ export function UsersView({ showToast }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // null | 'invite' | { ...user } para editar
+  const [resendingId, setResendingId] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -37,17 +38,22 @@ export function UsersView({ showToast }) {
   }
 
   async function resendInvite(u) {
-    const { data, error } = await supabase.functions.invoke('resend-invite', {
-      body: { email: u.email, redirectTo: window.location.origin },
-    });
-    if (error || !data?.ok) {
-      showToast('error', 'Erro', data?.error || error?.message || 'Falha ao reenviar');
-      return;
+    setResendingId(u.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('resend-invite', {
+        body: { email: u.email, redirectTo: window.location.origin },
+      });
+      if (error || !data?.ok) {
+        showToast('error', 'Erro', data?.error || error?.message || 'Falha ao reenviar');
+        return;
+      }
+      const msg = data.mode === 'recovery'
+        ? `Link de redefinição de senha enviado para ${u.email}`
+        : `Novo convite enviado para ${u.email}`;
+      showToast('success', 'Email enviado', msg);
+    } finally {
+      setResendingId(null);
     }
-    const msg = data.mode === 'recovery'
-      ? `Link de redefinição de senha enviado para ${u.email}`
-      : `Novo convite enviado para ${u.email}`;
-    showToast('success', 'Email enviado', msg);
   }
 
   return (
@@ -98,10 +104,11 @@ export function UsersView({ showToast }) {
                       <Pencil size={14} />
                     </button>
                     {u.active && (
-                      <button onClick={() => resendInvite(u)}
-                        className="ml-1 text-[11px] px-2 py-1 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800"
+                      <button onClick={() => resendInvite(u)} disabled={resendingId === u.id}
+                        className="ml-1 text-[11px] px-2 py-1 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
                         title="Reenvia o convite (ou link de redefinição se a pessoa já tem senha)">
-                        Reenviar
+                        {resendingId === u.id && <Loader2 size={11} className="animate-spin" />}
+                        {resendingId === u.id ? 'Enviando' : 'Reenviar'}
                       </button>
                     )}
                     <button onClick={() => toggleActive(u)}
