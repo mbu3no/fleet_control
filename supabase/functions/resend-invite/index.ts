@@ -68,12 +68,24 @@ Deno.serve(async (req: Request) => {
 
     // Transforma erro do Supabase em mensagem amigavel em portugues
     const friendly = (raw: string | undefined): string => {
-      const m = (raw || "").toLowerCase();
-      if (/rate|limit|too many/.test(m)) {
+      if (!raw) return "Nao foi possivel enviar o email. Tente de novo em alguns minutos.";
+      const m = raw.toLowerCase();
+      // Cooldown por email: "For security purposes, you can only request this after N seconds"
+      const secMatch = m.match(/after (\d+) seconds?/);
+      if (secMatch) {
+        return `Aguarde ${secMatch[1]} segundos antes de reenviar para este email.`;
+      }
+      if (/for security purposes/.test(m)) {
+        return "Aguarde alguns segundos antes de reenviar para este email.";
+      }
+      // Limite por hora / outros rate limits
+      if (/rate|limit|too many|over.*quota/.test(m)) {
         return "Limite de emails atingido (Supabase libera poucos por hora). Aguarde alguns minutos antes de tentar de novo.";
       }
-      if (/not found/.test(m)) return "Usuario nao encontrado";
-      return raw || "Erro ao enviar email";
+      if (/not found|does not exist/.test(m)) return "Usuario nao encontrado";
+      if (/invalid.*email/.test(m)) return "Email invalido";
+      // Fallback: qualquer outro erro em ingles vira mensagem generica em portugues
+      return "Nao foi possivel enviar o email. Tente de novo em alguns minutos.";
     };
 
     // 5. Tenta reenviar convite (so funciona se o usuario nao confirmou ainda)
