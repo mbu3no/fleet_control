@@ -53,7 +53,9 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const email = (body.email || "").toString().trim().toLowerCase();
     const redirectTo = body.redirectTo || undefined;
-    if (!email) return json({ ok: false, error: "Email obrigatorio" }, 400);
+    // Erros de regra de negocio retornam HTTP 200 com ok:false para o
+    // supabase-js entregar a mensagem em vez de embrulhar num "non-2xx".
+    if (!email) return json({ ok: false, error: "Email obrigatorio" });
 
     // 4. Confirmar que o email existe em profiles (evita disparar email para
     // qualquer endereco do mundo via essa funcao)
@@ -62,7 +64,17 @@ Deno.serve(async (req: Request) => {
       .select("id")
       .eq("email", email)
       .maybeSingle();
-    if (!target) return json({ ok: false, error: "Usuario nao encontrado na lista" }, 404);
+    if (!target) return json({ ok: false, error: "Usuario nao encontrado na lista" });
+
+    // Transforma erro do Supabase em mensagem amigavel em portugues
+    const friendly = (raw: string | undefined): string => {
+      const m = (raw || "").toLowerCase();
+      if (/rate|limit|too many/.test(m)) {
+        return "Limite de emails atingido (Supabase libera poucos por hora). Aguarde alguns minutos antes de tentar de novo.";
+      }
+      if (/not found/.test(m)) return "Usuario nao encontrado";
+      return raw || "Erro ao enviar email";
+    };
 
     // 5. Tenta reenviar convite (so funciona se o usuario nao confirmou ainda)
     const { error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
@@ -72,7 +84,7 @@ Deno.serve(async (req: Request) => {
     //    (a tela SetPassword aceita os dois fluxos, type=invite ou type=recovery)
     const { error: recoveryErr } = await admin.auth.resetPasswordForEmail(email, { redirectTo });
     if (recoveryErr) {
-      return json({ ok: false, error: recoveryErr.message }, 400);
+      return json({ ok: false, error: friendly(recoveryErr.message) });
     }
     return json({ ok: true, mode: "recovery" });
   } catch (e) {
