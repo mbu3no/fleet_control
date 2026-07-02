@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { UserPlus, Pencil, Loader2, X, ShieldCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
 import { PAGE_KEYS, useAuth } from '../lib/auth.jsx';
-import { PageHeader, EmptyState } from '../components/ui.jsx';
+import { PageHeader, EmptyState, SearchInput } from '../components/ui.jsx';
+import { matchesSearch } from '../lib/format.js';
 
 const ROLE_LABELS = { admin: 'Admin', editor: 'Editor', viewer: 'Visualizador' };
 const ROLE_ORDER = ['admin', 'editor', 'viewer'];
@@ -13,6 +14,7 @@ export function UsersView({ showToast }) {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // null | 'invite' | { ...user } para editar
   const [resendingId, setResendingId] = useState(null);
+  const [search, setSearch] = useState('');
 
   async function load() {
     setLoading(true);
@@ -67,7 +69,22 @@ export function UsersView({ showToast }) {
         </div>
       ) : users.length === 0 ? (
         <EmptyState icon={ShieldCheck} text="Nenhum usuário ainda. Use Convidar." />
-      ) : (
+      ) : (() => {
+        const filtered = users
+          .filter(u => matchesSearch(u, search, [
+            x => x.name,
+            x => x.email,
+            x => ROLE_LABELS[x.role] || x.role,
+          ]))
+          .sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', 'pt-BR'));
+        return (
+        <>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex-1">
+            <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nome, email ou papel..." />
+          </div>
+          <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">{filtered.length} de {users.length}</span>
+        </div>
         <div className="rounded-xl border border-slate-800 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-900/60 text-[11px] text-slate-500 uppercase">
@@ -81,7 +98,7 @@ export function UsersView({ showToast }) {
               </tr>
             </thead>
             <tbody>
-              {users.map(u => (
+              {filtered.map(u => (
                 <tr key={u.id} className="border-t border-slate-800">
                   <td className="px-4 py-2.5 text-white">{u.name || '—'}</td>
                   <td className="px-4 py-2.5 text-slate-400">{u.email}</td>
@@ -121,7 +138,9 @@ export function UsersView({ showToast }) {
             </tbody>
           </table>
         </div>
-      )}
+        </>
+        );
+      })()}
 
       {modal && (
         <UserModal
