@@ -100,6 +100,36 @@ function normalizePlate(p: string): string {
   return (p || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
+// Busca TODAS as linhas que tenham a coluna nao nula, paginando ao redor do
+// limite padrao de 1000 do Supabase. Sem isso, tabelas com >1000 linhas
+// (ex: trips depois do backfill Cobli) fazem o mapa de dedup ficar incompleto
+// e o sync tenta reinserir viagens ja existentes -> duplicate key.
+async function fetchAllNotNull(
+  supabase: SupabaseClient,
+  table: string,
+  column: string,
+): Promise<string[]> {
+  const PAGE = 1000;
+  const all: string[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(column)
+      .not(column, "is", null)
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    for (const row of data) {
+      const val = (row as Record<string, unknown>)[column];
+      if (typeof val === "string") all.push(val);
+    }
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
+
 // Normaliza nome para matching: lowercase, sem acentos, sem espaço extra.
 // Filtra por charCode para evitar bug de combining marks invisíveis no source.
 function normalizeName(s: string): string {
@@ -324,13 +354,9 @@ async function syncTrips(supabase: SupabaseClient, token: string, now: string): 
     if (d.infleet_id) driverByInfleet.set(d.infleet_id, d.id);
   }
 
-  // 3. Chaves já existentes no banco (pra dedup)
-  const { data: existingTrips, error: tErr } = await supabase
-    .from("trips")
-    .select("infleet_trip_key")
-    .not("infleet_trip_key", "is", null);
-  if (tErr) throw tErr;
-  const existingKeys = new Set<string>((existingTrips || []).map((t) => t.infleet_trip_key as string));
+  // 3. Chaves já existentes no banco (pra dedup) — paginado
+  const existingKeysList = await fetchAllNotNull(supabase, "trips", "infleet_trip_key");
+  const existingKeys = new Set<string>(existingKeysList);
 
   let inserted = 0;
   let updated = 0;
