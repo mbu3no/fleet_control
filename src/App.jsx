@@ -372,20 +372,9 @@ function FleetApp() {
   };
 
   const saveReservation = () => {
-    if (!formData.requester_name?.trim() || !formData.vehicle_id || !formData.start_date_time || !formData.end_date_time || !formData.reason?.trim()) {
-      showToast('error', 'Erro', 'Solicitante, veículo, datas e motivo são obrigatórios'); return;
-    }
-    saveGeneric('reservations', {
-      vehicle_id: Number(formData.vehicle_id),
-      requester_name: formData.requester_name.trim(),
-      department: formData.department?.trim() || null,
-      requester_email: formData.requester_email?.trim() || null,
-      requester_phone: formData.requester_phone?.trim() || null,
-      start_date_time: formData.start_date_time,
-      end_date_time: formData.end_date_time,
-      reason: formData.reason.trim(),
-      status: formData.status || 'pendente'
-    }, formData.id, 'Reserva');
+    // Reservas migradas pro sistema interno em grupofamiliapires.com.br. Defesa
+    // caso alguem tente burlar a UI via console. A criacao aqui esta bloqueada.
+    showToast('info', 'Reservas migradas', 'Novas reservas são feitas no novo sistema interno.');
   };
 
   const updateReservationStatus = async (id, status) => {
