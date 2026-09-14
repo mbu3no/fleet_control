@@ -2,7 +2,10 @@
 
 Sistema de gestão de frotas construído do zero — controle operacional (veículos, motoristas, viagens, abastecimentos, manutenções, despesas, seguros, reservas), análise financeira (custos por veículo, rateio proporcional por km, depreciação) e autenticação por convite com três papéis aplicados no banco via RLS.
 
-Em produção e em uso real: **[fleet-control-mu.vercel.app](https://fleet-control-mu.vercel.app)** (acesso somente por convite).
+Feito durante meu **estágio na Família Pires**. Rodou em **produção real** por meses gerenciando 4 veículos, 26 motoristas e mais de 13 mil viagens (com integrações automáticas Infleet e Webposto). Depois a gestão de frotas foi consolidada dentro do **sistema interno unificado** da empresa — este deploy fica aqui como portfólio.
+
+- **[Ver demo interativo](https://fleet-control-mu.vercel.app/?demo=1)** — abre o app com dados fictícios, dá pra clicar em tudo.
+- **[Landing pública](https://fleet-control-mu.vercel.app)** — visão geral do projeto.
 
 ![Stack](https://img.shields.io/badge/React-18.3-61dafb?logo=react&logoColor=white)
 ![Stack](https://img.shields.io/badge/Vite-5.4-646cff?logo=vite&logoColor=white)

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from './supabase.js';
+import { DEMO_MODE, exitDemoMode } from './demo-mode.js';
+import { DEMO_PROFILE } from './demo-data.js';
 
 const AuthContext = createContext(null);
 
@@ -28,11 +30,12 @@ export function canSeePage(pageKey, role, allowedPages) {
 }
 
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState(DEMO_MODE ? { user: { id: DEMO_PROFILE.id } } : null);
+  const [profile, setProfile] = useState(DEMO_MODE ? DEMO_PROFILE : null);
+  const [loading, setLoading] = useState(!DEMO_MODE);
 
   useEffect(() => {
+    if (DEMO_MODE) return; // no-op em demo — perfil fake ja setado
     let mounted = true;
 
     async function applySession(sess) {
@@ -79,7 +82,8 @@ export function AuthProvider({ children }) {
     canDelete: role === 'admin',
     allowedPages: profile?.allowed_pages || [],
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
-    signOut: () => supabase.auth.signOut(),
+    signOut: () => (DEMO_MODE ? exitDemoMode() : supabase.auth.signOut()),
+    isDemo: DEMO_MODE,
   };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

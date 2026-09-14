@@ -24,7 +24,7 @@ import { SetPasswordPage } from './pages/SetPassword.jsx';
 import { LandingPage } from './pages/Landing.jsx';
 
 function FleetApp() {
-  const { role, allowedPages, isAdmin, canWrite, canDelete, profile: currentUser, signOut } = useAuth();
+  const { role, allowedPages, isAdmin, canWrite, canDelete, profile: currentUser, signOut, isDemo } = useAuth();
   const [activeTab, setActiveTab] = useState(() => {
     const path = (typeof window !== 'undefined' && window.location.pathname) || '/';
     return PATH_TO_TAB[path] || 'dashboard';
@@ -209,6 +209,7 @@ function FleetApp() {
   }, [activeTab]);
 
   const openModal = (type, data = {}) => {
+    if (isDemo) { showToast('info', 'Modo demonstração', 'Nada é salvo aqui — visualização apenas.'); return; }
     // Excecao: visualizador pode CRIAR reserva (nao editar)
     const isReservationCreate = type === 'reservation' && !data.id;
     if (!canWrite && !isReservationCreate) { showToast('error', 'Sem permissão', 'Você não pode criar ou editar registros'); return; }
@@ -236,6 +237,7 @@ function FleetApp() {
   };
 
   const removeItem = (table, id, label) => {
+    if (isDemo) { showToast('info', 'Modo demonstração', 'Nada é salvo aqui — visualização apenas.'); return; }
     if (!canDelete) { showToast('error', 'Sem permissão', 'Apenas administradores podem excluir'); return; }
     setConfirmDialog({
       title: `Excluir ${label.toLowerCase()}`,
@@ -471,6 +473,16 @@ function FleetApp() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 relative overflow-hidden">
+      {isDemo && (
+        <div className="sticky top-0 z-50 bg-violet-500 text-white text-xs font-medium px-4 py-2 flex items-center justify-center gap-3 shadow-md">
+          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+          <span>Modo demonstração · dados fictícios · nada é salvo</span>
+          <button onClick={signOut}
+            className="ml-2 px-2 py-0.5 rounded-md bg-white/15 hover:bg-white/25 text-[11px] transition-colors">
+            Sair do demo
+          </button>
+        </div>
+      )}
       <div className="grain"></div>
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-violet-600/5 rounded-full blur-3xl"></div>

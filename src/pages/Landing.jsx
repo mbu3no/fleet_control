@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import {
-  Car, Github, LogIn, ArrowRight, ExternalLink,
+  Car, Github, LogIn, ArrowRight, ExternalLink, Play,
   LayoutDashboard, Fuel, Wrench, Users as UsersIcon, Wallet, Calculator,
   Shield, Database, Zap, Code2, MapPin, Receipt,
 } from 'lucide-react';
@@ -11,6 +11,7 @@ export function LandingPage() {
   useEffect(() => { document.title = 'Fleet Control · Gestão de frotas'; }, []);
 
   const goLogin = () => { window.location.href = '/login'; };
+  const goDemo = () => { window.location.href = '/?demo=1'; };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -57,15 +58,22 @@ export function LandingPage() {
             Controle operacional (veículos, motoristas, viagens, abastecimentos, manutenções, despesas, seguros e reservas), análise financeira (custos por veículo, rateio proporcional por km, depreciação) e integrações automáticas com Infleet e Webposto.
           </p>
           <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
+            <button onClick={goDemo}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-violet-500 hover:bg-violet-400 text-white text-sm font-medium transition-colors shadow-sm shadow-violet-500/25">
+              <Play size={16} strokeWidth={2.5} /> Ver demo interativo
+            </button>
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-700 bg-slate-900/60 text-slate-100 text-sm font-medium hover:bg-slate-800 transition-colors">
               <Github size={16} /> Ver no GitHub
             </a>
             <button onClick={goLogin}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-violet-500 hover:bg-violet-400 text-white text-sm font-medium transition-colors shadow-sm shadow-violet-500/25">
-              Entrar no app <ArrowRight size={16} />
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-slate-300 text-sm font-medium hover:text-white hover:bg-slate-800 transition-colors">
+              Entrar <ArrowRight size={14} />
             </button>
           </div>
+          <p className="mt-3 text-[11px] text-slate-500">
+            O demo abre o app com dados fictícios — dá pra clicar em tudo, sem risco de vazamento.
+          </p>
           <div className="mt-6 flex items-center justify-center gap-3 flex-wrap text-[11px] text-slate-500">
             <span className="px-2 py-1 rounded-md bg-slate-900/60 border border-slate-800">React 18 + Vite 5</span>
             <span className="px-2 py-1 rounded-md bg-slate-900/60 border border-slate-800">Supabase (Postgres + Auth + Edge Functions)</span>
@@ -161,8 +169,11 @@ export function LandingPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-white mb-2">Sobre este deploy</h3>
+                <p className="text-sm text-slate-400 leading-relaxed mb-3">
+                  Feito durante meu <span className="text-slate-200 font-medium">estágio na Família Pires</span>. Rodou em produção por meses gerenciando 4 veículos, 26 motoristas e mais de 13 mil viagens, com sincronização automática Infleet e Webposto a cada 3 horas.
+                </p>
                 <p className="text-sm text-slate-400 leading-relaxed">
-                  Projeto interno da Família Pires que evoluiu ao longo de meses e serviu como aprendizado profundo em React, Supabase, RLS, GraphQL, Edge Functions e integração com sistemas legados. A gestão da frota agora acontece dentro do sistema unificado da empresa — este deploy fica como demonstração pública do código, das decisões e do que dá pra construir com um stack enxuto.
+                  Depois a gestão da frota foi consolidada dentro do sistema interno unificado da empresa. Este deploy fica aqui como portfólio — o código continua funcional, o modo demo permite explorar as telas com dados fictícios, e o repositório documenta as decisões técnicas.
                 </p>
               </div>
             </div>
