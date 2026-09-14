@@ -122,6 +122,11 @@ export function LoginPage() {
         <p className="text-[11px] text-slate-600 text-center mt-4">
           Acesso somente por convite do administrador.
         </p>
+        <div className="text-center mt-3">
+          <a href="/" className="text-[11px] text-slate-500 hover:text-slate-300 inline-flex items-center gap-1">
+            <ArrowLeft size={11} /> Voltar para a página inicial
+          </a>
+        </div>
       </div>
     </div>
   );

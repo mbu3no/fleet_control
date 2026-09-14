@@ -21,6 +21,7 @@ import { useAuth, canSeePage } from './lib/auth.jsx';
 import { isPasswordSetupUrl } from './lib/recovery.js';
 import { LoginPage } from './pages/Login.jsx';
 import { SetPasswordPage } from './pages/SetPassword.jsx';
+import { LandingPage } from './pages/Landing.jsx';
 
 function FleetApp() {
   const { role, allowedPages, isAdmin, canWrite, canDelete, profile: currentUser, signOut } = useAuth();
@@ -1105,7 +1106,11 @@ export default function App() {
   if (isPasswordSetupUrl) return <SetPasswordPage />;
 
   if (loading) return <AuthLoadingScreen />;
-  if (!session || !profile) return <LoginPage />;
+  if (!session || !profile) {
+    const path = typeof window !== 'undefined' ? window.location.pathname : '/';
+    if (path === '/login') return <LoginPage />;
+    return <LandingPage />;
+  }
 
   return <FleetApp />;
 }
