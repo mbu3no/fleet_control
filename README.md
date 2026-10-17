@@ -1,11 +1,11 @@
 # Fleet Control
 
-Sistema de gestão de frotas construído do zero em **React + Supabase** — controle operacional (veículos, motoristas, viagens, abastecimentos, manutenções, despesas, seguros, reservas), análise financeira (custos por veículo, rateio proporcional por km, depreciação) e autenticação por convite com três papéis aplicados no banco via RLS.
+Sistema de gestão de frotas construído do zero em **React + Supabase**: controle operacional (veículos, motoristas, viagens, abastecimentos, manutenções, despesas, seguros, reservas), análise financeira (custos por veículo, rateio proporcional por km, depreciação) e autenticação por convite com três papéis aplicados no banco via RLS.
 
-Feito durante meu **estágio na Família Pires**. Rodou em **produção real** por meses gerenciando 4 veículos, 26 motoristas e mais de 13 mil viagens (com integrações automáticas Infleet e Webposto sincronizando a cada 3 horas). Depois a gestão de frotas foi consolidada dentro do **sistema interno unificado** da empresa — este deploy fica aqui como portfólio.
+Feito durante meu **estágio na Família Pires**. Rodou em **produção real** por meses gerenciando 4 veículos, 26 motoristas e mais de 13 mil viagens (com integrações automáticas Infleet e Webposto sincronizando a cada 3 horas). Depois a gestão de frotas foi consolidada dentro do **sistema interno unificado** da empresa, e este deploy ficou como portfólio.
 
-- **[Ver demo interativo](https://fleet-control-mu.vercel.app/?demo=1)** — abre o app com dados fictícios, dá pra clicar em tudo.
-- **[Landing pública](https://fleet-control-mu.vercel.app)** — visão geral do projeto.
+- **[Ver demo interativo](https://fleet-control-mu.vercel.app/?demo=1)**: abre o app com dados fictícios, dá pra clicar em tudo.
+- **[Landing pública](https://fleet-control-mu.vercel.app)**: visão geral do projeto.
 
 ![Stack](https://img.shields.io/badge/React-18.3-61dafb?logo=react&logoColor=white)
 ![Stack](https://img.shields.io/badge/Vite-5.4-646cff?logo=vite&logoColor=white)
@@ -18,16 +18,16 @@ Feito durante meu **estágio na Família Pires**. Rodou em **produção real** p
 **Operação.** Cadastros de veículos, motoristas, viagens, abastecimentos, manutenções, despesas (IPVA, licenciamento, multas), seguros e reservas. Alertas escalonados de vencimentos (seguros 30/15d, IPVA 14/7d, revisões por km e data). Busca em todas as tabelas. Modal de confirmação em ações destrutivas.
 
 **Análise financeira.**
-- **Custos por veículo** — soma das 4 categorias (combustível, manutenção, despesas, seguro proporcional ao período) com custo/km.
-- **Rateio** — distribuição proporcional por km em três níveis (empresa → motorista → veículo), com filtro de período/empresa, busca, ordenação e exportação CSV.
-- **Depreciação linear** 20%/ano por veículo.
-- **Dashboard** com KPIs do período (consumo médio, custo/km, composição do total), gráficos e ranking por veículo.
+- **Custos por veículo:** soma das 4 categorias (combustível, manutenção, despesas, seguro proporcional ao período) com custo/km.
+- **Rateio:** distribuição proporcional por km em três níveis (empresa → motorista → veículo), com filtro de período/empresa, busca, ordenação e exportação CSV.
+- **Depreciação linear:** 20% ao ano por veículo.
+- **Dashboard:** KPIs do período (consumo médio, custo/km, composição do total), gráficos e ranking por veículo.
 
-**Autenticação e permissões.** Login email/senha via **Supabase Auth**, entrada somente por convite — não existe cadastro aberto. Três papéis (`admin`, `editor`, `visualizador`) e páginas permitidas por usuário. Tudo aplicado no banco via **RLS**, então a chave pública sozinha não acessa nada.
+**Autenticação e permissões.** Login email/senha via **Supabase Auth**, entrada somente por convite, sem cadastro aberto. Três papéis (`admin`, `editor`, `visualizador`) e páginas permitidas por usuário. Tudo aplicado no banco via **RLS**, então a chave pública sozinha não acessa nada.
 
 **Integrações automáticas.**
-- **Infleet** (telemetria, GraphQL) — veículos, motoristas, viagens, despesas e manutenções.
-- **Webposto** (combustível, REST) — abastecimentos, com backfill em background das centenas de milhares de vendas históricas.
+- **Infleet** (telemetria, GraphQL): veículos, motoristas, viagens, despesas e manutenções.
+- **Webposto** (combustível, REST): abastecimentos, com backfill em background das centenas de milhares de vendas históricas.
 
 Ambos rodam a cada 3 horas via `pg_cron` + `pg_net` disparando Edge Functions.
 
@@ -37,7 +37,7 @@ Ambos rodam a cada 3 horas via `pg_cron` + `pg_net` disparando Edge Functions.
 
 **RLS por papel no Postgres.** Função SQL `current_user_role()` (`SECURITY DEFINER`) resolve o papel a partir do JWT sem gerar recursão de RLS ao ler `profiles`. Policies por tabela: `SELECT` para qualquer perfil ativo, `INSERT/UPDATE` para admin+editor, `DELETE` só admin.
 
-**Backfill da Webposto com self-chaining.** A API do Webposto retorna vendas com paginação por cursor sem filtro por placa — pra achar os abastecimentos da frota precisou varrer centenas de milhares de vendas. Para fugir do timeout de 30s da Edge Function, cada rodada processa um lote, salva o cursor em `sync_state`, e **se re-invoca via `EdgeRuntime.waitUntil`** até alcançar o presente. O frontend recebe um status `caughtUp: false` enquanto o backfill roda em background.
+**Backfill da Webposto com self-chaining.** A API do Webposto retorna vendas com paginação por cursor sem filtro por placa. Pra achar os abastecimentos da frota precisou varrer centenas de milhares de vendas. Para fugir do timeout de 30s da Edge Function, cada rodada processa um lote, salva o cursor em `sync_state`, e **se re-invoca via `EdgeRuntime.waitUntil`** até alcançar o presente. O frontend recebe um status `caughtUp: false` enquanto o backfill roda em background.
 
 **Descoberta do filtro obrigatório da Infleet.** `listMaintenances` retornava `"unknown"` mesmo com token válido. Via introspecção do schema GraphQL descobri que o filtro `occurredAt` (PeriodInput com `startAt`/`endAt`) é obrigatório na prática, apesar do schema marcar como opcional. Mesmo padrão vale pra `listExpenses`.
 
@@ -72,22 +72,31 @@ src/
 └── pages/               Dashboard, Costs, Allocation, Expenses, Reservations,
                          Depreciation, Login, SetPassword, Users, Landing
 
-supabase/functions/
-├── sync-infleet-vehicles/   GraphQL Infleet (5 entidades)
-├── sync-webposto-fuelings/  REST Webposto com backfill encadeado
-├── invite-user/             Convite com validação de admin
-└── resend-invite/           Reenvio de convite / recuperação de senha
+supabase/
+├── schema.sql           Schema base (tabelas, índices, views)
+├── migrations/          Alterações versionadas, numeradas na ordem em que rodaram
+├── scripts/             Scripts operacionais (crons, limpeza, desligamento)
+└── functions/
+    ├── sync-infleet-vehicles/   GraphQL Infleet (5 entidades)
+    ├── sync-webposto-fuelings/  REST Webposto com backfill encadeado
+    ├── invite-user/             Convite com validação de admin
+    └── resend-invite/           Reenvio de convite e recuperação de senha
 
-*.sql                     Migrations versionadas (schema, syncs, auth, RLS)
+docs/auth/               Design e plano de implementação da autenticação
 ```
 
-## Roadmap
+## Rodando localmente
 
-- Recuperação de senha self-service (implementado depois do deploy inicial)
-- Exportação de relatórios em PDF
-- App mobile (PWA — implementado)
-- Auditoria de ações por usuário
+```bash
+npm install
+cp .env.example .env     # preencha VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY
+npm run dev
+```
+
+Sem Supabase configurado, `http://localhost:5173/?demo=1` abre o app com os dados fictícios.
+
+Para montar o banco do zero: rode `supabase/schema.sql` e depois os arquivos de `supabase/migrations/` em ordem numérica no SQL Editor do Supabase.
 
 ## Licença
 
-Projeto privado.
+Código disponível para consulta como portfólio. Todos os direitos reservados.

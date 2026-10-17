@@ -32,7 +32,7 @@ export function ReservationsView({ vehicles, reservations, openModal, removeItem
             As reservas agora são feitas no novo sistema interno.
           </div>
           <div className="text-xs text-slate-400 mb-3 leading-relaxed">
-            Este app não recebe mais reservas — as antigas ficam aqui só para consulta.
+            Este app não recebe mais reservas. As antigas ficam aqui só para consulta.
           </div>
           <button onClick={goToNewSystem}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500 hover:bg-violet-400 text-white text-sm font-medium transition-colors shadow-sm shadow-violet-500/15">

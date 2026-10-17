@@ -184,7 +184,7 @@ CREATE TABLE reservations (
 );
 
 -- A tabela 'profiles' (autenticacao e permissoes) e criada por
--- auth-profiles-setup.sql. A RLS e ligada por auth-rls-enable.sql.
+-- migrations/007_auth-profiles-setup.sql. A RLS e ligada por migrations/008_auth-rls-enable.sql.
 
 
 -- =====================================================================

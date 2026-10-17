@@ -49,7 +49,7 @@ export function LandingPage() {
         <section className="pt-16 sm:pt-24 pb-16 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-medium bg-violet-500/10 border border-violet-500/20 text-violet-300 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse"></span>
-            Projeto pessoal · Em produção real
+            Projeto de estágio · Rodou em produção
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-white tracking-tight leading-tight max-w-3xl mx-auto">
             Sistema de gestão de frotas <span className="text-violet-400">construído do zero</span>.
@@ -72,7 +72,7 @@ export function LandingPage() {
             </button>
           </div>
           <p className="mt-3 text-[11px] text-slate-500">
-            O demo abre o app com dados fictícios — dá pra clicar em tudo, sem risco de vazamento.
+            O demo abre o app com dados fictícios. Dá pra clicar em tudo, nada é salvo.
           </p>
           <div className="mt-6 flex items-center justify-center gap-3 flex-wrap text-[11px] text-slate-500">
             <span className="px-2 py-1 rounded-md bg-slate-900/60 border border-slate-800">React 18 + Vite 5</span>
@@ -91,13 +91,13 @@ export function LandingPage() {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <FeatureCard icon={LayoutDashboard} title="Operação">
-              Veículos, motoristas, viagens, abastecimentos, manutenções, despesas, seguros, reservas — tudo cadastrado ou sincronizado.
+              Veículos, motoristas, viagens, abastecimentos, manutenções, despesas, seguros e reservas, cadastrados à mão ou sincronizados.
             </FeatureCard>
             <FeatureCard icon={Calculator} title="Análise financeira">
               Custos consolidados por veículo (com seguro proporcional ao período) e rateio em 3 níveis por km rodado.
             </FeatureCard>
             <FeatureCard icon={Shield} title="Auth por convite">
-              Login por convite, três papéis (admin, editor, visualizador) e páginas permitidas por usuário — aplicado no banco via RLS.
+              Login por convite, três papéis (admin, editor, visualizador) e páginas permitidas por usuário, tudo aplicado no banco via RLS.
             </FeatureCard>
             <FeatureCard icon={Database} title="Integrações">
               Sync a cada 3h com Infleet (GraphQL) e Webposto (REST + backfill em background) via Edge Functions Deno.
@@ -114,16 +114,16 @@ export function LandingPage() {
           </div>
           <div className="grid md:grid-cols-2 gap-4">
             <Highlight icon={Shield} title="Convite server-side com validação JWT">
-              A Edge Function `invite-user` recebe o token do admin, confirma o papel na tabela `profiles`, e só então usa a service_role pra criar o usuário no Supabase Auth. O frontend nunca toca em chave secreta.
+              A Edge Function <Code>invite-user</Code> recebe o token do admin, confirma o papel na tabela <Code>profiles</Code> e só então usa a service_role pra criar o usuário no Supabase Auth. O frontend nunca toca em chave secreta.
             </Highlight>
             <Highlight icon={Database} title="RLS por papel no Postgres">
-              Função SQL `current_user_role()` (SECURITY DEFINER) resolve o papel a partir do JWT sem gerar recursão de RLS ao ler `profiles`. Policies por tabela: SELECT autenticado, INSERT/UPDATE admin+editor, DELETE só admin.
+              Função SQL <Code>current_user_role()</Code> (SECURITY DEFINER) resolve o papel a partir do JWT sem gerar recursão de RLS ao ler <Code>profiles</Code>. Policies por tabela: SELECT autenticado, INSERT/UPDATE admin+editor, DELETE só admin.
             </Highlight>
             <Highlight icon={Zap} title="Backfill Webposto com self-chaining">
-              A API não filtra por placa, então pra achar os abastecimentos da frota precisou varrer 280k vendas. Pra fugir do timeout de 30s da Edge Function, cada rodada processa um lote e se re-invoca via `EdgeRuntime.waitUntil` até alcançar o presente.
+              A API não filtra por placa, então pra achar os abastecimentos da frota precisou varrer 280k vendas. Pra fugir do timeout de 30s da Edge Function, cada rodada processa um lote e se re-invoca via <Code>EdgeRuntime.waitUntil</Code> até alcançar o presente.
             </Highlight>
             <Highlight icon={Code2} title="Descoberta do filtro obrigatório da Infleet">
-              `listMaintenances` retornava "unknown" mesmo com token válido. Via introspecção do schema GraphQL descobri que o filtro `occurredAt` (PeriodInput) é obrigatório na prática, apesar do schema marcar como opcional. Mesmo padrão vale pra `listExpenses`.
+              <Code>listMaintenances</Code> retornava "unknown" mesmo com token válido. Via introspecção do schema GraphQL descobri que o filtro <Code>occurredAt</Code> (PeriodInput) é obrigatório na prática, apesar do schema marcar como opcional. Mesmo padrão vale pra <Code>listExpenses</Code>.
             </Highlight>
           </div>
         </section>
@@ -173,7 +173,7 @@ export function LandingPage() {
                   Feito durante meu <span className="text-slate-200 font-medium">estágio na Família Pires</span>. Rodou em produção por meses gerenciando 4 veículos, 26 motoristas e mais de 13 mil viagens, com sincronização automática Infleet e Webposto a cada 3 horas.
                 </p>
                 <p className="text-sm text-slate-400 leading-relaxed">
-                  Depois a gestão da frota foi consolidada dentro do sistema interno unificado da empresa. Este deploy fica aqui como portfólio — o código continua funcional, o modo demo permite explorar as telas com dados fictícios, e o repositório documenta as decisões técnicas.
+                  Depois a gestão da frota foi consolidada dentro do sistema interno unificado da empresa. Este deploy fica aqui como portfólio: o código continua funcional, o modo demo permite explorar as telas com dados fictícios, e o repositório documenta as decisões técnicas.
                 </p>
               </div>
             </div>
@@ -198,6 +198,10 @@ export function LandingPage() {
       </main>
     </div>
   );
+}
+
+function Code({ children }) {
+  return <code className="px-1 py-0.5 rounded bg-slate-800 text-slate-200 text-[11px] font-mono">{children}</code>;
 }
 
 function FeatureCard({ icon: Icon, title, children }) {

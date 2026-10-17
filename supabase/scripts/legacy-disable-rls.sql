@@ -1,5 +1,7 @@
 -- =====================================================================
--- FIX RLS — desabilita Row Level Security e concede permissões
+-- LEGADO: desabilita Row Level Security e concede permissões
+-- Usado so antes da autenticacao existir. Substituido por
+-- migrations/008_auth-rls-enable.sql. NAO rodar em producao.
 -- =====================================================================
 -- Use este script quando o app retornar:
 --   "new row violates row-level security policy for table X"

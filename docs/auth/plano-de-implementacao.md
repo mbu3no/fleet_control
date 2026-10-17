@@ -1,7 +1,5 @@
-# Autenticacao e permissoes — Plano de implementacao
+# Autenticacao e permissoes: plano de implementacao
 
-> **Para quem vai executar:** use a sub-skill superpowers:subagent-driven-development
-> (recomendado) ou superpowers:executing-plans para implementar tarefa a tarefa.
 > Os passos usam checkbox (`- [ ]`) para acompanhamento.
 
 **Goal:** Fechar o Fleet Control com login, onboarding por convite e tres papeis
@@ -15,7 +13,7 @@ senha, e uma aba Usuarios. RLS so e ligada no final, apos os testes.
 **Tech Stack:** React 18 + Vite, Supabase (Postgres, Auth, Edge Functions Deno),
 Tailwind via CDN, lucide-react.
 
-**Especificacao:** `docs/superpowers/specs/2026-05-21-auth-permissoes-design.md`
+**Especificacao:** [design.md](design.md)
 
 ---
 

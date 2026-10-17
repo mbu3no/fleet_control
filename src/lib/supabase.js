@@ -2,8 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import { DEMO_MODE } from './demo-mode.js';
 import { DEMO_TABLES } from './demo-data.js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Em modo demo o app nao toca no Supabase, entao roda mesmo sem .env.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || (DEMO_MODE ? 'https://demo.supabase.co' : '');
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || (DEMO_MODE ? 'demo' : '');
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   throw new Error(
@@ -20,7 +21,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 
-const DEMO_ERROR = 'Modo demonstração — nada é salvo por aqui.';
+const DEMO_ERROR = 'Modo demonstração: nada é salvo por aqui.';
 
 // Helper para buscar dados de uma tabela com tratamento de erro.
 // Pagina automaticamente — o Supabase tem limite padrao de 1000 linhas por

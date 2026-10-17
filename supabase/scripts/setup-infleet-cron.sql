@@ -3,7 +3,7 @@
 -- Data: 2026-05-12
 -- =====================================================================
 -- IMPORTANTE: rode este script DEPOIS de:
---   1. Aplicar add-infleet-vehicle-sync.sql
+--   1. Aplicar migrations/002_add-infleet-vehicle-sync.sql
 --   2. Deployar a Edge Function sync-infleet-vehicles
 --   3. Setar o secret INFLEET_TOKEN no painel da Supabase
 --
@@ -25,9 +25,9 @@ SELECT cron.schedule(
   '0 */3 * * *',
   $$
   SELECT net.http_post(
-    url := 'https://cfikehpzbyyqscigfwwl.supabase.co/functions/v1/sync-infleet-vehicles',
+    url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/sync-infleet-vehicles',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmaWtlaHB6Ynl5cXNjaWdmd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDM1MzQsImV4cCI6MjA5MjQxOTUzNH0.obO9GsMzxNJfx4rDuf4xrUcNuycfWvXr2yRTJCgPELY',
+      'Authorization', 'Bearer YOUR_SUPABASE_ANON_KEY_HERE',
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb

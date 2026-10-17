@@ -77,7 +77,7 @@ export function ExpensesView({ vehicles, expenses, insurances, openModal, remove
               syncing={syncingInfleet}
             />
           )}
-          {expenses.length === 0 ? <EmptyState icon={Receipt} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem despesas — cadastre manual ou sincronize da Infleet."} /> : (
+          {expenses.length === 0 ? <EmptyState icon={Receipt} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem despesas. Cadastre manual ou sincronize da Infleet."} /> : (
             <>
             <SearchInput value={expenseSearch} onChange={setExpenseSearch} placeholder="Buscar por veículo, tipo, descrição, data..." />
             <DataTable columns={['Data', 'Veículo', 'Tipo', 'Descrição', 'Valor']} canEdit={canWrite} canDelete={canDelete}

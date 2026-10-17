@@ -3,7 +3,7 @@
 -- Data: 2026-05-16
 -- =====================================================================
 -- IMPORTANTE: rode DEPOIS de:
---   1. Aplicar add-webposto-fueling-sync.sql
+--   1. Aplicar migrations/006_add-webposto-fueling-sync.sql
 --   2. Deployar a Edge Function sync-webposto-fuelings
 --   3. Setar o secret WEBPOSTO_TOKEN no painel da Supabase
 --
@@ -25,9 +25,9 @@ SELECT cron.schedule(
   '30 */3 * * *',
   $$
   SELECT net.http_post(
-    url := 'https://cfikehpzbyyqscigfwwl.supabase.co/functions/v1/sync-webposto-fuelings',
+    url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/sync-webposto-fuelings',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmaWtlaHB6Ynl5cXNjaWdmd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDM1MzQsImV4cCI6MjA5MjQxOTUzNH0.obO9GsMzxNJfx4rDuf4xrUcNuycfWvXr2yRTJCgPELY',
+      'Authorization', 'Bearer YOUR_SUPABASE_ANON_KEY_HERE',
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb

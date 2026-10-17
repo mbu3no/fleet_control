@@ -106,7 +106,7 @@ function FleetApp() {
       if (errors.length > 0) {
         showToast('error', 'Sincronização com avisos', `${base} · ${errors.length} erros`);
       } else if (!caughtUp) {
-        showToast('info', 'Backfill rodando em segundo plano', `${base} · ${vendasScanned} vendas varridas neste lote. A sincronização continua sozinha — atualize a página em alguns minutos.`, 8000);
+        showToast('info', 'Backfill rodando em segundo plano', `${base} · ${vendasScanned} vendas varridas neste lote. A sincronização continua sozinha. Atualize a página em alguns minutos.`, 8000);
       } else {
         showToast('success', 'Webposto sincronizado', `${base} · histórico completo`);
       }
@@ -209,7 +209,7 @@ function FleetApp() {
   }, [activeTab]);
 
   const openModal = (type, data = {}) => {
-    if (isDemo) { showToast('info', 'Modo demonstração', 'Nada é salvo aqui — visualização apenas.'); return; }
+    if (isDemo) { showToast('info', 'Modo demonstração', 'Nada é salvo aqui, visualização apenas.'); return; }
     // Excecao: visualizador pode CRIAR reserva (nao editar)
     const isReservationCreate = type === 'reservation' && !data.id;
     if (!canWrite && !isReservationCreate) { showToast('error', 'Sem permissão', 'Você não pode criar ou editar registros'); return; }
@@ -237,7 +237,7 @@ function FleetApp() {
   };
 
   const removeItem = (table, id, label) => {
-    if (isDemo) { showToast('info', 'Modo demonstração', 'Nada é salvo aqui — visualização apenas.'); return; }
+    if (isDemo) { showToast('info', 'Modo demonstração', 'Nada é salvo aqui, visualização apenas.'); return; }
     if (!canDelete) { showToast('error', 'Sem permissão', 'Apenas administradores podem excluir'); return; }
     setConfirmDialog({
       title: `Excluir ${label.toLowerCase()}`,
@@ -307,7 +307,7 @@ function FleetApp() {
   const saveFueling = () => {
     if (!formData.vehicle_id || !formData.liters || !formData.value) { showToast('error', 'Erro', 'Veículo, litros e valor são obrigatórios'); return; }
     if (formData.webposto_id) {
-      showToast('info', 'Abastecimento do Webposto', 'Gerenciado pela integração — edição local desabilitada.');
+      showToast('info', 'Abastecimento do Webposto', 'Gerenciado pela integração. Edição local desabilitada.');
       return;
     }
     saveGeneric('fuelings', {
@@ -346,7 +346,7 @@ function FleetApp() {
     if (!formData.vehicle_id || !formData.type?.trim() || !formData.value) { showToast('error', 'Erro', 'Veículo, tipo e valor são obrigatórios'); return; }
     const isInfleet = !!formData.infleet_id;
     if (isInfleet) {
-      showToast('info', 'Despesa gerenciada pela Infleet', 'Edite na Infleet — sincronização automática a cada 3h.');
+      showToast('info', 'Despesa gerenciada pela Infleet', 'Edite na Infleet. Sincronização automática a cada 3h.');
       return;
     }
     saveGeneric('expenses', {
@@ -633,7 +633,7 @@ function FleetApp() {
                     onSync={syncWebposto}
                     syncing={syncingWebposto}
                   />
-                  {fuelings.length === 0 ? <EmptyState icon={Fuel} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem abastecimentos — cadastre manual ou sincronize do Webposto."} /> : (
+                  {fuelings.length === 0 ? <EmptyState icon={Fuel} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem abastecimentos. Cadastre manual ou sincronize do Webposto."} /> : (
                     <>
                       <SearchInput value={q} onChange={v => updateSearch('fuelings', v)} placeholder="Buscar por veículo, data..." />
                       <DataTable columns={['Data', 'Veículo', 'Litros', 'Valor', 'Km']} canEdit={canWrite} canDelete={canDelete}
@@ -669,7 +669,7 @@ function FleetApp() {
                     onSync={syncInfleet}
                     syncing={syncingInfleet}
                   />
-                  {maintenances.length === 0 ? <EmptyState icon={Wrench} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem manutenções — cadastre manual ou sincronize da Infleet."} /> : (
+                  {maintenances.length === 0 ? <EmptyState icon={Wrench} text={vehicles.length === 0 ? "Cadastre veículos primeiro" : "Sem manutenções. Cadastre manual ou sincronize da Infleet."} /> : (
                     <>
                       <SearchInput value={q} onChange={v => updateSearch('maintenances', v)} placeholder="Buscar por veículo, tipo, data..." />
                       <DataTable columns={['Data', 'Veículo', 'Tipo', 'Custo', 'Próxima (km)']} canEdit={canWrite} canDelete={canDelete}
@@ -770,7 +770,7 @@ function FleetApp() {
                   onSync={syncInfleet}
                   syncing={syncingInfleet}
                 />
-                {trips.length === 0 ? <EmptyState icon={MapPin} text={vehicles.length === 0 || drivers.length === 0 ? "Cadastre veículos e motoristas primeiro" : "Sem viagens — adicione manualmente ou sincronize da Infleet."} /> : (
+                {trips.length === 0 ? <EmptyState icon={MapPin} text={vehicles.length === 0 || drivers.length === 0 ? "Cadastre veículos e motoristas primeiro" : "Sem viagens. Adicione manualmente ou sincronize da Infleet."} /> : (
                 <>
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   <select value={tripFilters.driver} onChange={e => setTripFilters(f => ({ ...f, driver: e.target.value }))}

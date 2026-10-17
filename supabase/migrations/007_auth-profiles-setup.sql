@@ -1,7 +1,7 @@
 -- =====================================================================
 -- AUTH 1/2 — Tabela de perfis e funcao de papel
 -- Rodar no SQL Editor do Supabase.
--- NAO liga RLS nas tabelas de dados (isso e o auth-rls-enable.sql, depois).
+-- NAO liga RLS nas tabelas de dados (isso e o 008_auth-rls-enable.sql, depois).
 -- =====================================================================
 
 -- Remove leftovers de uma tentativa de auth anterior (tabelas nunca usadas)
