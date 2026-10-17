@@ -476,9 +476,10 @@ function FleetApp() {
       {isDemo && (
         <div className="sticky top-0 z-50 h-9 bg-violet-500 text-white text-xs font-medium px-4 flex items-center justify-center gap-3 shadow-md">
           <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-          <span>Modo demonstração · dados fictícios · nada é salvo</span>
+          <span className="whitespace-nowrap sm:hidden">Modo demo · dados fictícios</span>
+          <span className="whitespace-nowrap hidden sm:inline">Modo demonstração · dados fictícios · nada é salvo</span>
           <button onClick={signOut}
-            className="ml-2 px-2 py-0.5 rounded-md bg-white/15 hover:bg-white/25 text-[11px] transition-colors">
+            className="ml-2 px-2 py-0.5 rounded-md bg-white/15 hover:bg-white/25 text-[11px] whitespace-nowrap transition-colors">
             Sair do demo
           </button>
         </div>
