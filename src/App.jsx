@@ -474,7 +474,7 @@ function FleetApp() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 relative overflow-hidden">
       {isDemo && (
-        <div className="sticky top-0 z-50 bg-violet-500 text-white text-xs font-medium px-4 py-2 flex items-center justify-center gap-3 shadow-md">
+        <div className="sticky top-0 z-50 h-9 bg-violet-500 text-white text-xs font-medium px-4 flex items-center justify-center gap-3 shadow-md">
           <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
           <span>Modo demonstração · dados fictícios · nada é salvo</span>
           <button onClick={signOut}
@@ -490,7 +490,7 @@ function FleetApp() {
       </div>
 
       <div className="relative">
-        <aside className={`fixed top-0 left-0 h-[100dvh] z-40 w-64 bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/50 transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+        <aside className={`fixed left-0 z-40 ${isDemo ? 'top-9 h-[calc(100dvh-2.25rem)]' : 'top-0 h-[100dvh]'} w-64 bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/50 transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
           <div className="h-full flex flex-col">
             <div className="p-6 border-b border-slate-800/50">
               <div className="flex items-center gap-3">

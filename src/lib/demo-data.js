@@ -77,7 +77,7 @@ const TRIP_ROUTES = [
   { origin: 'Divinopolis - Sede', destination: 'BH - Anchieta', km: 118.2 },
 ];
 
-export const DEMO_TRIPS = Array.from({ length: 60 }, (_, i) => {
+export const DEMO_TRIPS = Array.from({ length: 300 }, (_, i) => {
   const day = daysAgo(Math.floor(Math.random() * 120));
   const startedAt = new Date(day);
   startedAt.setHours(6 + Math.floor(Math.random() * 12), Math.floor(Math.random() * 60), 0, 0);

@@ -1,14 +1,23 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Car, Github, LogIn, ArrowRight, ExternalLink, Play,
   LayoutDashboard, Fuel, Wrench, Users as UsersIcon, Wallet, Calculator,
-  Shield, Database, Zap, Code2, MapPin, Receipt,
+  Shield, Database, Zap, Code2, MapPin, Receipt, Sun, Moon, Clock, Link2, TrendingDown, CalendarCheck,
 } from 'lucide-react';
 
 const GITHUB_URL = 'https://github.com/mbu3no/fleet_control';
 
 export function LandingPage() {
   useEffect(() => { document.title = 'Fleet Control · Gestão de frotas'; }, []);
+
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('fleet_theme') || 'dark'; } catch { return 'dark'; }
+  });
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('fleet_theme', theme); } catch { /* ignora */ }
+  }, [theme]);
+  const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'));
 
   const goLogin = () => { window.location.href = '/login'; };
   const goDemo = () => { window.location.href = '/?demo=1'; };
@@ -32,6 +41,11 @@ export function LandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={toggleTheme}
+              className="w-9 h-9 rounded-lg hover:bg-slate-800/60 flex items-center justify-center text-slate-300 hover:text-white transition-colors"
+              title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'} aria-label="Alternar tema">
+              {theme === 'dark' ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
+            </button>
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"
               className="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors">
               <Github size={14} /> GitHub
@@ -82,6 +96,22 @@ export function LandingPage() {
           </div>
         </section>
 
+        <section className="pb-12">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { value: '13 mil+', label: 'viagens registradas' },
+              { value: '26', label: 'motoristas ativos' },
+              { value: 'a cada 3h', label: 'sincronização automática' },
+              { value: '280 mil', label: 'vendas varridas no backfill' },
+            ].map((n, i) => (
+              <div key={i} className="rounded-2xl border border-slate-800 bg-slate-900/40 px-5 py-4 text-center">
+                <div className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">{n.value}</div>
+                <div className="mt-1 text-xs text-slate-400">{n.label}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="py-12 border-t border-slate-800/60">
           <div className="text-center mb-10">
             <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">O que faz</h2>
@@ -107,6 +137,32 @@ export function LandingPage() {
 
         <section className="py-12 border-t border-slate-800/60">
           <div className="mb-10">
+            <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">Stack e arquitetura</h2>
+            <p className="mt-2 text-sm text-slate-400 max-w-xl">
+              O que roda em cada camada e por quê.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 divide-y divide-slate-800">
+            {[
+              { layer: 'Frontend', tech: 'React 18 + Vite 5', detail: 'SPA com URLs reais por página via pushState/popstate, sem react-router. PWA instalável no celular.' },
+              { layer: 'Interface', tech: 'Tailwind CSS + Lucide + Recharts', detail: 'Tema claro e escuro, layout responsivo, gráficos do dashboard e tabelas com busca e ordenação.' },
+              { layer: 'Banco de dados', tech: 'Supabase Postgres', detail: 'Schema versionado em migrations numeradas. Row Level Security por papel em todas as tabelas.' },
+              { layer: 'Autenticação', tech: 'Supabase Auth', detail: 'Email e senha, entrada só por convite, três papéis e páginas permitidas por usuário.' },
+              { layer: 'Backend', tech: 'Edge Functions (Deno)', detail: 'Sincronização com Infleet (GraphQL) e Webposto (REST), envio de convites com validação de admin.' },
+              { layer: 'Agendamento', tech: 'pg_cron + pg_net', detail: 'O próprio Postgres dispara as Edge Functions a cada 3 horas.' },
+              { layer: 'Deploy', tech: 'Vercel', detail: 'Deploy automático a cada push na main, com fallback de SPA para links diretos.' },
+            ].map((r, i) => (
+              <div key={i} className="grid sm:grid-cols-[150px_230px_1fr] gap-1 sm:gap-4 px-5 py-4">
+                <div className="text-[11px] uppercase tracking-wider text-slate-500 sm:pt-0.5">{r.layer}</div>
+                <div className="text-sm font-medium text-white">{r.tech}</div>
+                <div className="text-xs text-slate-400 leading-relaxed sm:pt-0.5">{r.detail}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="py-12 border-t border-slate-800/60">
+          <div className="mb-10">
             <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">Destaques técnicos</h2>
             <p className="mt-2 text-sm text-slate-400 max-w-xl">
               Alguns dos problemas mais interessantes que resolvi neste projeto.
@@ -125,6 +181,12 @@ export function LandingPage() {
             <Highlight icon={Code2} title="Descoberta do filtro obrigatório da Infleet">
               <Code>listMaintenances</Code> retornava "unknown" mesmo com token válido. Via introspecção do schema GraphQL descobri que o filtro <Code>occurredAt</Code> (PeriodInput) é obrigatório na prática, apesar do schema marcar como opcional. Mesmo padrão vale pra <Code>listExpenses</Code>.
             </Highlight>
+            <Highlight icon={Clock} title="Datas sem erro de fuso horário">
+              <Code>new Date('2026-05-25')</Code> é lido como UTC; comparado com o horário de Brasília, a contagem de dias até um vencimento errava por 1. Centralizei tudo num helper <Code>daysUntil()</Code> que interpreta a data como local, corrigindo todos os alertas de uma vez.
+            </Highlight>
+            <Highlight icon={Link2} title="URLs reais por página numa SPA">
+              Cada aba tem sua URL (<Code>/veiculos</Code>, <Code>/rateio</Code>, ...), feita com <Code>pushState</Code> e <Code>popstate</Code> nativos, sem biblioteca de rotas. O <Code>vercel.json</Code> devolve o app em qualquer caminho, então links diretos e o botão voltar funcionam.
+            </Highlight>
           </div>
         </section>
 
@@ -132,29 +194,32 @@ export function LandingPage() {
           <div className="mb-10">
             <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">Módulos do app</h2>
             <p className="mt-2 text-sm text-slate-400 max-w-xl">
-              Doze áreas navegáveis, cada uma com filtros, busca e permissão por papel.
+              Doze áreas, cada uma com filtros, busca e permissão por papel.
             </p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {[
-              { icon: LayoutDashboard, name: 'Visão geral' },
-              { icon: Car, name: 'Veículos' },
-              { icon: UsersIcon, name: 'Motoristas' },
-              { icon: MapPin, name: 'Viagens' },
-              { icon: Fuel, name: 'Abastecimentos' },
-              { icon: Wrench, name: 'Manutenções' },
-              { icon: Receipt, name: 'Despesas + Seguros' },
-              { icon: Calculator, name: 'Rateio por km' },
-              { icon: Wallet, name: 'Custos por veículo' },
-              { icon: Database, name: 'Depreciação' },
-              { icon: Shield, name: 'Usuários (admin)' },
-              { icon: Code2, name: 'Configurações' },
+              { icon: LayoutDashboard, name: 'Visão geral', desc: 'KPIs do período, composição de custos e alertas.' },
+              { icon: Car, name: 'Veículos', desc: 'Frota com km atual e revisões por km e data.' },
+              { icon: UsersIcon, name: 'Motoristas', desc: 'Cadastro sincronizado da telemetria.' },
+              { icon: MapPin, name: 'Viagens', desc: 'Rotas, km e horários vindos da Infleet.' },
+              { icon: Fuel, name: 'Abastecimentos', desc: 'Litros e valores importados do Webposto.' },
+              { icon: Wrench, name: 'Manutenções', desc: 'Histórico e custo das tarefas por veículo.' },
+              { icon: Receipt, name: 'Despesas + Seguros', desc: 'IPVA, licenciamento, multas e apólices.' },
+              { icon: CalendarCheck, name: 'Reservas', desc: 'Agenda de uso dos veículos.' },
+              { icon: Calculator, name: 'Rateio por km', desc: 'Custo dividido por empresa, motorista e veículo.' },
+              { icon: Wallet, name: 'Custos por veículo', desc: 'Quatro categorias somadas e custo por km.' },
+              { icon: TrendingDown, name: 'Depreciação', desc: 'Valor atual de cada veículo, 20% ao ano.' },
+              { icon: Shield, name: 'Usuários', desc: 'Convites, papéis e páginas permitidas.' },
             ].map((m, i) => {
               const Icon = m.icon;
               return (
-                <div key={i} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-900/40">
-                  <Icon size={14} className="text-violet-400 shrink-0" strokeWidth={2} />
-                  <span className="text-sm text-slate-300 truncate">{m.name}</span>
+                <div key={i} className="px-4 py-3.5 rounded-xl border border-slate-800 bg-slate-900/40">
+                  <div className="flex items-center gap-2.5">
+                    <Icon size={14} className="text-violet-400 shrink-0" strokeWidth={2} />
+                    <span className="text-sm font-medium text-slate-200">{m.name}</span>
+                  </div>
+                  <div className="mt-1.5 text-xs text-slate-500 leading-relaxed">{m.desc}</div>
                 </div>
               );
             })}

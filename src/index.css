@@ -93,6 +93,13 @@ html[data-theme="light"] [class*="text-slate-600"] {
   color: #94a3b8 !important;
 }
 
+/* Texto branco sobre fundo violeta solido (botoes primarios, banner demo) */
+html[data-theme="light"] .bg-violet-500.text-white,
+html[data-theme="light"] .bg-violet-500 .text-white,
+html[data-theme="light"] .bg-violet-500 svg.text-white {
+  color: #ffffff !important;
+}
+
 /* Hover de texto */
 html[data-theme="light"] .hover\:text-white:hover {
   color: #0f172a !important;
